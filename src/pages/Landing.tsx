@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import Nav from "../components/Nav";
 import TrackCard from "../components/TrackCard";
-import { tracks, totalLessonCount } from "../data/curriculum";
+import { tracks, totalLessonCount, findTrack } from "../data/curriculum";
+import { loadProgress } from "../lib/progress";
 
 const features = [
   {
@@ -25,6 +26,45 @@ const features = [
     text: "No account, no paywall, no ads. Progress is saved right in your browser.",
   },
 ];
+
+function ContinueCard() {
+  // Find the first lesson not yet completed, in curriculum order
+  const progress = loadProgress();
+  for (const track of tracks) {
+    for (let i = 0; i < track.lessons.length; i++) {
+      const lesson = track.lessons[i];
+      if ((progress.completed[track.id + "/" + lesson.id] ?? 0) < 1) {
+        const next = track.lessons[i + 1];
+        const first = findTrack(tracks[0].id) === track && i === 0;
+        return (
+          <Link
+            to={`/learn/${track.id}/${lesson.id}`}
+            className="card group mx-auto mt-10 flex max-w-2xl items-center gap-4 border-mint-500/30 bg-mint-500/5 p-4 text-left transition hover:border-mint-500/60"
+          >
+            <span className="text-2xl">{track.emoji}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-mono text-xs text-mint-400">
+                {first ? "start here" : "continue where you left off"}
+              </span>
+              <span className="block truncate font-semibold text-white">
+                {lesson.title}
+              </span>
+            </span>
+            <span className="btn-primary !px-4 !py-1.5 text-sm">{next || i > 0 ? "Continue →" : "Start →"}</span>
+          </Link>
+        );
+      }
+    }
+  }
+  return (
+    <div className="card mx-auto mt-10 flex max-w-2xl items-center gap-4 border-mint-500/40 bg-mint-500/10 p-4">
+      <span className="text-2xl">🏆</span>
+      <span className="flex-1 font-semibold text-white">
+        Every lesson complete — you finished the whole curriculum!
+      </span>
+    </div>
+  );
+}
 
 export default function Landing() {
   return (
@@ -66,6 +106,8 @@ export default function Landing() {
               See the curriculum
             </a>
           </div>
+
+          <ContinueCard />
 
           {/* Hero terminal */}
           <div className="code-window mx-auto mt-14 max-w-2xl text-left">

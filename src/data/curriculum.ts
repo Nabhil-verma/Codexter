@@ -175,6 +175,54 @@ if (score >= 90) {
         ],
       },
       {
+        id: "strings",
+        title: "Strings & Template Literals",
+        minutes: 6,
+        body: `Strings hold text. JavaScript gives you a whole toolbox for them.
+
+Basic moves:
+- \`"abc".length\` → 3
+- \`"abc".toUpperCase()\` → "ABC"
+- \`"a,b,c".split(",")\` → ["a", "b", "c"]
+- \`"  hi  ".trim()\` → "hi"
+
+**Template literals** (backtick strings) let you embed variables directly:
+
+\`\`\`
+const name = "Ada";
+console.log(\`Hello, \${name}! You have \${3 + 2} messages.\`);
+\`\`\`
+
+The \`\${...}\` part runs any expression inside the string — much cleaner than gluing things together with +.`,
+        starter: `const user = "Ada";
+const points = 250;
+
+// TODO: use a template literal to make this one clean line
+console.log("Player " + user + " has " + points + " points");
+
+const shout = "learning is fun";
+console.log(shout.toUpperCase());
+console.log("word count:", shout.split(" ").length);`,
+        check: {
+          expr: "output.includes('Player Ada has 250 points')",
+          hint: "Rewrite the first console.log as a template literal: `Player ${user} has ${points} points`.",
+        },
+        quiz: [
+          {
+            q: "Which character starts a template literal?",
+            options: ["A double quote \"", "A backtick `", "A single quote '", "A slash /"],
+            answer: 1,
+            explanation: "Template literals use backticks, which allow ${} interpolation and multi-line strings.",
+          },
+          {
+            q: 'What does "hello".split("") return?',
+            options: ["[\"hello\"]", "[\"h\",\"e\",\"l\",\"l\",\"o\"]", "\"olleh\"", "5"],
+            answer: 1,
+            explanation: "Splitting on the empty string breaks the text into single characters.",
+          },
+        ],
+      },
+      {
         id: "loops",
         title: "Loops: Repeat Yourself",
         minutes: 7,
@@ -334,6 +382,61 @@ console.log("Average:", avg);`,
           },
         ],
       },
+      {
+        id: "destructuring",
+        title: "Destructuring & Spread",
+        minutes: 6,
+        body: `Destructuring **unpacks** arrays and objects into variables in one step.
+
+\`\`\`
+const { name, score } = { name: "Ada", score: 92 };
+const [first, second] = ["a", "b"];
+\`\`\`
+
+The **spread operator** \`...\` copies or merges:
+
+\`\`\`
+const copy = [...scores];              // clone an array
+const merged = { ...defaults, ...options }; // later keys win
+\`\`\`
+
+These two patterns are everywhere in modern JavaScript — especially React, where \`const { title, onClick } = props;\` happens constantly.`,
+        starter: `const player = { name: "Ada", level: 7, xp: 5400 };
+const loot = ["sword", "shield", "potion"];
+
+// TODO: replace these with destructuring
+const name = player.name;
+const level = player.level;
+
+console.log(name, "reached level", level);
+console.log("first loot item:", loot[0]);
+
+const updated = { ...player, xp: player.xp + 600 };
+console.log("xp after quest:", updated.xp);`,
+        check: {
+          expr: "output.includes('Ada reached level 7') && output.includes('xp after quest: 6000')",
+          hint: "Use const { name, level } = player; and keep the spread line — xp should end at 6000.",
+        },
+        quiz: [
+          {
+            q: "What does const [a, b] = [1, 2, 3]; leave in b?",
+            options: ["[1, 2]", "2", "3", "undefined"],
+            answer: 1,
+            explanation: "Destructuring matches by position: a gets 1, b gets 2, the rest is ignored.",
+          },
+          {
+            q: "What does { ...base, level: 10 } return if base.level is 3?",
+            options: [
+              "level stays 3",
+              "level becomes 10 — later keys win",
+              "It throws an error",
+              "Both levels are kept in an array",
+            ],
+            answer: 1,
+            explanation: "In spread merges, later properties overwrite earlier ones.",
+          },
+        ],
+      },
     ],
   },
   {
@@ -396,6 +499,116 @@ render();`,
             options: ["el.listen()", "el.onClick()", "el.addEventListener('click', fn)", "el.subscribe('click')"],
             answer: 2,
             explanation: "addEventListener('click', fn) runs fn every time the element is clicked.",
+          },
+        ],
+      },
+      {
+        id: "events",
+        title: "Events & State",
+        minutes: 8,
+        body: `Interactive pages are just a loop: **event happens → state changes → UI re-renders**.
+
+A click handler reads like this on a real page:
+
+\`\`\`
+button.addEventListener("click", () => {
+  count = count + 1;
+  label.textContent = count;
+});
+\`\`\`
+
+The sandbox can't capture real clicks, so here you'll simulate them: a function acts as the handler, mutates state, and "renders". This exact pattern — state in, render out — is the mental model behind React's \`useState\`.`,
+        starter: `// A tiny state machine, like a real interactive page
+const state = { clicks: 0, log: [] };
+
+function handleClick() {
+  state.clicks = state.clicks + 1;
+  state.log.push("click #" + state.clicks);
+}
+
+function render() {
+  console.log("--- render ---");
+  console.log("total clicks:", state.clicks);
+  state.log.forEach((entry) => console.log(" •", entry));
+}
+
+// Simulate three clicks
+handleClick();
+handleClick();
+handleClick();
+render();
+
+// TODO: call handleClick one more time, then render() again
+// The new log should show "click #4"`,
+        check: {
+          expr: "output.includes('click #4')",
+          hint: "Add handleClick(); then render(); at the bottom — the log must include 'click #4'.",
+        },
+        quiz: [
+          {
+            q: "In the event → state → render loop, what usually triggers a re-render?",
+            options: ["The state changing", "The browser refreshing", "A CSS animation", "Nothing — pages render once"],
+            answer: 0,
+            explanation: "Events mutate state; the changed state is what the render step draws.",
+          },
+          {
+            q: "What does an event listener callback receive on a click?",
+            options: ["Nothing", "An event object with details like target and coordinates", "The whole page's HTML", "A promise"],
+            answer: 1,
+            explanation: "Handlers get an event object — event.target tells you what was clicked.",
+          },
+        ],
+      },
+      {
+        id: "mini-project",
+        title: "Mini-Project: Quiz Engine 🏁",
+        minutes: 12,
+        body: `Time to combine **everything** — variables, functions, conditionals, loops, arrays, objects, destructuring — into one working program.
+
+You're given quiz **data** (an array of objects) and must build the **engine** that runs it:
+
+1. Loop over the questions
+2. Compare the stored answer index with the user's pick
+3. Tally a score with \`reduce\` or a loop
+4. Print a final grade using a template literal
+
+This is a real (tiny) architecture: **data separate from logic**. Change the data and your engine still works — that's the difference between scripting and programming.`,
+        starter: `const quizData = [
+  { q: "2 + 2 = ?", options: ["3", "4", "5"], answer: 1 },
+  { q: "Capital of France?", options: ["London", "Berlin", "Paris"], answer: 2 },
+  { q: "JS stands for?", options: ["JavaSource", "JavaScript", "JustScript"], answer: 1 },
+];
+
+// The user's picks (simulate a session)
+const picks = [1, 0, 1];
+
+// TODO: build the engine
+// 1. Loop over quizData with forEach or for
+// 2. For each question, compare question.answer with picks[i]
+// 3. Count how many are correct
+// 4. Print: "Score: X/3" and a message:
+//    3 -> "Perfect! 🏆"  2 -> "Almost there!"  else -> "Keep practicing!"`,
+        check: {
+          expr: "output.includes('Score: 2/3') && output.includes('Almost there!')",
+          hint: "picks[0] and picks[2] are correct (2 points), so print 'Score: 2/3' and 'Almost there!'.",
+        },
+        quiz: [
+          {
+            q: "Why keep quiz data separate from the quiz logic?",
+            options: [
+              "It looks nicer in the editor",
+              "You can swap or extend the data without touching the engine",
+              "JavaScript requires it",
+              "It makes the code run faster",
+            ],
+            answer: 1,
+            explanation: "Separating data from logic makes programs flexible and testable — a core engineering habit.",
+          },
+          {
+            q: "Which loop fits best for iterating an array while also needing the index?",
+            options: ["for (let i = 0; …) or forEach((item, i) => …)", "while (true)", "do…while", "Loops can't give you indexes"],
+            answer: 0,
+            explanation: "Both a classic for and forEach's second argument expose the index.",
           },
         ],
       },

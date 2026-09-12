@@ -1,19 +1,60 @@
 import { Link } from "react-router-dom";
 import Nav from "../components/Nav";
-import { tracks, lessonKey } from "../data/curriculum";
+import { tracks, lessonKey, totalLessonCount } from "../data/curriculum";
 import { loadProgress } from "../lib/progress";
 
 export default function Learn() {
   const progress = loadProgress();
+  const doneCount = tracks.reduce(
+    (n, t) =>
+      n +
+      t.lessons.filter((l) => (progress.completed[lessonKey(t.id, l.id)] ?? 0) >= 1)
+        .length,
+    0
+  );
+  const pct = Math.round((doneCount / totalLessonCount) * 100);
 
   return (
     <div className="min-h-screen">
       <Nav />
       <main className="mx-auto max-w-4xl px-4 py-12">
-        <h1 className="text-3xl font-extrabold text-white">All lessons</h1>
-        <p className="mt-2 text-slate-400">
-          Work through the tracks in order, or jump to whatever looks useful.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-white">All lessons</h1>
+            <p className="mt-2 text-slate-400">
+              Work through the tracks in order, or jump to whatever looks useful.
+            </p>
+          </div>
+          {doneCount > 0 && (
+            <button
+              onClick={() => {
+                if (confirm("Reset all progress? This can't be undone.")) {
+                  localStorage.removeItem("clr-progress-v1");
+                  location.reload();
+                }
+              }}
+              className="rounded-lg border border-ink-700 px-3 py-1.5 font-mono text-xs text-slate-400 transition hover:border-red-500/50 hover:text-red-300"
+            >
+              reset progress
+            </button>
+          )}
+        </div>
+
+        <div className="mt-6">
+          <div className="flex items-center justify-between font-mono text-xs text-slate-500">
+            <span>
+              <span className="text-mint-400">{doneCount}</span> of{" "}
+              {totalLessonCount} lessons complete
+            </span>
+            <span>{pct}%</span>
+          </div>
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-ink-700">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-mint-600 to-mint-400 transition-all"
+              style={{ width: pct + "%" }}
+            />
+          </div>
+        </div>
 
         <div className="mt-10 space-y-10">
           {tracks.map((track) => (

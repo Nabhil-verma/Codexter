@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { runUserCode, evaluateCheck, type RunResult } from "../lib/runner";
 import type { Check } from "../data/curriculum";
 
@@ -12,6 +12,7 @@ export default function Playground({ starter, check, onPass }: Props) {
   const [code, setCode] = useState(starter);
   const [result, setResult] = useState<RunResult | null>(null);
   const [passed, setPassed] = useState(false);
+  const taRef = useRef<HTMLTextAreaElement>(null);
 
   const run = () => {
     const r = runUserCode(code);
@@ -27,6 +28,25 @@ export default function Playground({ starter, check, onPass }: Props) {
     setCode(starter);
     setResult(null);
     setPassed(false);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Cmd/Ctrl+Enter runs the code
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      run();
+      return;
+    }
+    // Tab inserts two spaces instead of leaving the textarea
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const ta = taRef.current;
+      if (!ta) return;
+      const { selectionStart: s, selectionEnd: end } = ta;
+      const next = code.slice(0, s) + "  " + code.slice(end);
+      setCode(next);
+      requestAnimationFrame(() => ta.setSelectionRange(s + 2, s + 2));
+    }
   };
 
   return (
@@ -48,6 +68,7 @@ export default function Playground({ starter, check, onPass }: Props) {
             </button>
             <button
               onClick={run}
+              title="Cmd/Ctrl+Enter"
               className="rounded-md bg-mint-500 px-3 py-1 font-mono text-xs font-bold text-ink-950 transition hover:bg-mint-400"
             >
               ▶ Run
@@ -55,8 +76,10 @@ export default function Playground({ starter, check, onPass }: Props) {
           </div>
         </div>
         <textarea
+          ref={taRef}
           value={code}
           onChange={(e) => setCode(e.target.value)}
+          onKeyDown={onKeyDown}
           spellCheck={false}
           rows={Math.max(8, Math.min(20, code.split("\n").length + 1))}
           className="block w-full resize-y bg-ink-900 p-4 font-mono text-[13px] leading-relaxed text-slate-200 outline-none placeholder:text-slate-600"
