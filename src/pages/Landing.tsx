@@ -189,9 +189,17 @@ export default function Landing() {
             It takes about five minutes to finish your first lesson. That's it.
             That's the pitch.
           </p>
-          <Link to="/learn" className="btn-gold mt-9">
-            Open lesson 1 →
-          </Link>
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+            <Link to="/learn" className="btn-gold">
+              Open lesson 1 →
+            </Link>
+            <Link
+              to="/playground"
+              className="rounded-full border border-ink-700 px-6 py-2.5 font-semibold text-paper-300 transition hover:border-gold-400 hover:text-gold-300"
+            >
+              Or just open the playground →
+            </Link>
+          </div>
         </div>
       </section>
 

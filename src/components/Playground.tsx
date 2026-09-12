@@ -6,14 +6,21 @@ type Props = {
   starter: string;
   check?: Check;
   onPass?: () => void;
+  /** Fires on every code edit — used by the free playground to persist */
+  onCodeChange?: (code: string) => void;
 };
 
-export default function Playground({ starter, check, onPass }: Props) {
+export default function Playground({ starter, check, onPass, onCodeChange }: Props) {
   const [code, setCode] = useState(starter);
   const [result, setResult] = useState<RunResult | null>(null);
   const [running, setRunning] = useState(false);
   const [passed, setPassed] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const update = (next: string) => {
+    setCode(next);
+    onCodeChange?.(next);
+  };
 
   const run = async () => {
     setRunning(true);
@@ -29,6 +36,7 @@ export default function Playground({ starter, check, onPass }: Props) {
 
   const reset = () => {
     setCode(starter);
+    onCodeChange?.(starter);
     setResult(null);
     setPassed(false);
   };
@@ -47,7 +55,7 @@ export default function Playground({ starter, check, onPass }: Props) {
       if (!ta) return;
       const { selectionStart: s, selectionEnd: end } = ta;
       const next = code.slice(0, s) + "  " + code.slice(end);
-      setCode(next);
+      update(next);
       requestAnimationFrame(() => ta.setSelectionRange(s + 2, s + 2));
     }
   };
@@ -82,7 +90,7 @@ export default function Playground({ starter, check, onPass }: Props) {
         <textarea
           ref={taRef}
           value={code}
-          onChange={(e) => setCode(e.target.value)}
+          onChange={(e) => update(e.target.value)}
           onKeyDown={onKeyDown}
           spellCheck={false}
           rows={Math.max(8, Math.min(24, code.split("\n").length + 1))}

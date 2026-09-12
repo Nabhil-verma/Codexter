@@ -2,6 +2,7 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Learn from "./pages/Learn";
 import Lesson from "./pages/Lesson";
+import PlaygroundPage from "./pages/PlaygroundPage";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -11,6 +12,7 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/learn" element={<Learn />} />
         <Route path="/learn/:trackId/:lessonId" element={<Lesson />} />
+        <Route path="/playground" element={<PlaygroundPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </HashRouter>
