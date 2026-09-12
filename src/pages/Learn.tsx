@@ -105,9 +105,12 @@ export default function Learn() {
                             {lesson.minutes} min ·{" "}
                             {lesson.starter
                               ? "interactive"
-                              : lesson.sandbox
-                                ? "visual"
-                                : "reading"} ·{" "}
+                              : lesson.gitSim
+                                ? "terminal"
+                                : lesson.sandbox
+                                  ? "visual"
+                                  : "reading"}
+                            {lesson.predict?.length ? " · predict" : ""} ·{" "}
                             {lesson.quiz.length} quiz questions
                           </span>
                         </span>

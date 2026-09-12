@@ -52,6 +52,36 @@ total = sum(countdown(1_000_000))   # never materializes the list
 **f-strings** format anything: \`f"{user['name']} is {user['age']:>3} years old"\`.
 
 Rule of thumb: list for order, tuple for fixed shapes, set for membership, dict for lookups.`,
+      predict: [
+        {
+          prompt: "What does this Python print?",
+          code: `nums = [1, 2, 3, 4]
+result = [n * 2 for n in nums if n % 2 == 0]
+print(result)`,
+          options: ["[2, 4, 6, 8]", "[4, 8]", "[2, 4]", "[4, 8, 12, 16]"],
+          answer: 1,
+          explanation:
+            "The filter keeps even numbers (2, 4) FIRST, then maps ×2 → [4, 8]. In comprehensions, `if` filters before the expression runs.",
+        },
+        {
+          prompt: "And this one?",
+          code: `def add_item(item, items=[]):
+    items.append(item)
+    return items
+
+print(add_item(1))
+print(add_item(2))`,
+          options: [
+            "[1] then [2] — a fresh list each call",
+            "[1] then [1, 2] — the default list is created ONCE at function definition",
+            "[1] then None",
+            "It raises a TypeError",
+          ],
+          answer: 1,
+          explanation:
+            "Python's infamous mutable default: the [] is evaluated once when `def` runs, so both calls share the same list. Use `items=None` and create inside.",
+        },
+      ],
       quiz: [
         {
           q: "Which collection is immutable?",

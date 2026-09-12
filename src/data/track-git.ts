@@ -189,6 +189,127 @@ const timeout = 60;        // incoming branch's version
       ],
     },
     {
+      id: "git-workflow-lab",
+      title: "The Git Workflow Lab",
+      minutes: 12,
+      body: `Time to drive a repo yourself. Below is a **simulated terminal** with a real workflow waiting: a modified file, a feature to branch, a merge that will conflict, and a push.
+
+The full cycle you're about to run, in order:
+
+\`\`\`
+git status                  # what changed?
+git add app.js              # stage the change
+git commit -m "add feature" # snapshot it
+git checkout -b feature     # branch for risky work
+git checkout main           # back to main
+git merge feature           # bring it home (this one conflicts!)
+git add app.js              # after fixing the conflict markers
+git commit -m "merge feature"
+git push                    # ship it
+\`\`\`
+
+**Why conflicts happen:** two branches change the same lines. Git merges cleanly when changes are in different places; when they overlap it stops and asks *you* to decide. The file gets markers like \`<<<<<<< HEAD\` / \`=======\` / \`>>>>>>> feature\` — you edit the file to the version you want, then stage and commit to finish the merge.
+
+**Muscle memory beats memorization.** Nobody remembers flags; everyone remembers \`status → add → commit\` because they've typed it a hundred times. Type every command below — don't copy-paste your way through this one.
+
+Objectives check off as you go. \`help\` lists what this simulator understands, and ↑ recalls your last command like a real shell.`,
+      gitSim: [
+        { text: "Run `git status` — find what's modified", match: (p) => p.cmd === "status" },
+        {
+          text: "Stage app.js (`git add app.js`)",
+          match: (p) => p.cmd === "add" && (p.args.includes("app.js") || p.args.includes(".")),
+        },
+        {
+          text: "Commit it with a message (git commit -m 'your message')",
+          match: (p) => p.cmd === "commit" && p.args.length >= 2,
+        },
+        {
+          text: "Create and switch to a branch (`git checkout -b feature`)",
+          match: (p) => (p.cmd === "checkout" || p.cmd === "switch") && p.args[0] === "-b" && !!p.args[1],
+        },
+        {
+          text: "Switch back to main and merge your branch (`git checkout main` then `git merge feature`)",
+          match: (p, s) =>
+            (p.cmd === "merge" && p.args[0] && p.args[0] !== s?.branch) ||
+            (p.cmd === "checkout" && p.args[0] === "main"),
+        },
+        {
+          text: "Resolve the conflict: `git add app.js` once you've seen the markers",
+          match: (p, s) =>
+            p.cmd === "add" && s?.conflicts === "app.js" && (p.args.includes("app.js") || p.args.includes(".")),
+        },
+        {
+          text: "Commit the merge (`git commit -m \"...\"`)",
+          match: (p, s) => p.cmd === "commit" && p.args.length >= 2 && s?.conflicts === "app.js",
+        },
+        {
+          text: "Push everything to origin (`git push`)",
+          match: (p, s) => p.cmd === "push" && (s?.ahead ?? 0) > 0,
+        },
+      ],
+      quiz: [
+        {
+          q: "What does `git add` actually do?",
+          options: [
+            "Saves the file to GitHub",
+            "Stages a snapshot of the file for the next commit",
+            "Creates a new branch",
+            "Uploads to the remote",
+          ],
+          answer: 1,
+          explanation:
+            "The staging area is the exact contents your next commit will record — add selects, commit snapshots.",
+        },
+        {
+          q: "A merge stops with CONFLICT. Git wants you to…",
+          options: [
+            "Run git merge again until it works",
+            "Delete the branch and start over",
+            "Edit the file to resolve, stage it, and commit",
+            "Push anyway",
+          ],
+          answer: 2,
+          explanation:
+            "Conflicts are a decision, not an error: pick the right content, stage, commit to conclude the merge.",
+        },
+        {
+          q: "`git checkout -b feature` does what in one step?",
+          options: [
+            "Merges feature into the current branch",
+            "Creates feature and switches to it",
+            "Deletes feature",
+            "Copies the branch to the remote",
+          ],
+          answer: 1,
+          explanation: "-b = create + switch, the branch equivalent of mkdir + cd.",
+        },
+        {
+          q: "After committing locally, `git status` says 'ahead of origin/main by 2 commits'. What does that mean?",
+          options: [
+            "Your local branch has 2 commits the remote doesn't have yet",
+            "You must pull before anything works",
+            "Two commits failed",
+            "The remote is broken",
+          ],
+          answer: 0,
+          explanation:
+            "Commits are local until pushed — 'ahead' is just unpushed work.",
+        },
+        {
+          q: "Why stage files one at a time instead of `git add .` always?",
+          options: [
+            "It's faster",
+            "Commits should group related changes — selective staging makes each commit meaningful",
+            "git add . doesn't work",
+            "Staging uploads files",
+          ],
+          answer: 1,
+          explanation:
+            "Small, focused commits are reviewable and revertable — that's the whole point of staging.",
+        },
+      ],
+    },
+    {
       id: "git-ci",
       title: "CI/CD: Shipping Automatically",
       minutes: 9,

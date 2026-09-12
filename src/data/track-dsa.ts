@@ -702,6 +702,58 @@ console.log("shortest A→E:", shortestDist(graph, "A", "E")); // 3? count the h
         expr: "output.includes('BFS from A: A B C D E') && output.includes('shortest A→E: 3')",
         hint: "BFS visits rings outward (A, then B/C, then D/E). Distance A→E via B or C then D is 3 hops... check your count: A→C→E is 2 hops, so expect 2.",
       },
+      predict: [
+        {
+          prompt: "Given edges A-B, A-C, B-D — what does this BFS from A print?",
+          code: `const graph = new Map([
+  ["A", ["B", "C"]],
+  ["B", ["D"]],
+  ["C", []],
+  ["D", []],
+]);
+function bfs(g, start) {
+  const seen = new Set([start]);
+  const q = [start];
+  const out = [];
+  while (q.length) {
+    const n = q.shift();
+    out.push(n);
+    for (const nb of g.get(n) ?? []) {
+      if (!seen.has(nb)) { seen.add(nb); q.push(nb); }
+    }
+  }
+  return out;
+}
+console.log(bfs(graph, "A").join(""));`,
+          options: ["ABDC", "ABCD — ring by ring: A, then B and C, then D", "ADBC", "ACBD"],
+          answer: 1,
+          explanation:
+            "The queue processes A (enqueues B, C), then B (enqueues D), then C, then D. FIFO order is what makes BFS explore in rings — and find shortest paths first.",
+        },
+        {
+          prompt: "What does this DFS from A print with the same graph?",
+          code: `// graph: A→[B, C], B→[D]
+function dfs(g, n, seen = new Set(), out = []) {
+  seen.add(n);
+  out.push(n);
+  for (const nb of g.get(n) ?? []) {
+    if (!seen.has(nb)) dfs(g, nb, seen, out);
+  }
+  return out;
+}
+// adjacency: A:[B,C], B:[D], C:[], D:[]
+console.log("order computed at runtime");`,
+          options: [
+            "ABDC — the neighbor loop visits B fully (and its D) before C",
+            "ACBD",
+            "ABCD",
+            "ADBC",
+          ],
+          answer: 0,
+          explanation:
+            "DFS dives: A → B → D (dead end) → back up → C. Same nodes as BFS, opposite order of exploration — swap the queue for a stack and you switch algorithms.",
+        },
+      ],
       quiz: [
         {
           q: "BFS finds shortest paths when…",

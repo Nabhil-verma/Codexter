@@ -4,6 +4,8 @@ import Nav from "../components/Nav";
 import LessonBody from "../components/LessonBody";
 import Playground from "../components/Playground";
 import CssSandbox from "../components/CssSandbox";
+import GitSim from "../components/GitSim";
+import PredictOutput from "../components/PredictOutput";
 import Quiz from "../components/Quiz";
 import {
   findTrack,
@@ -69,7 +71,15 @@ export default function Lesson() {
         <p className="mt-2 flex items-center gap-3 font-mono text-xs text-ink-600">
           <span>{lesson.minutes} min</span>
           <span className="text-gold-500">·</span>
-          <span>{lesson.starter ? "interactive" : lesson.sandbox ? "visual" : "reading"}</span>
+          <span>
+            {lesson.starter
+              ? "interactive"
+              : lesson.gitSim
+                ? "terminal"
+                : lesson.sandbox
+                  ? "visual"
+                  : "reading"}
+          </span>
           <span className="text-gold-500">·</span>
           {completed ? (
             <span className="text-gold-600">✓ completed</span>
@@ -101,10 +111,23 @@ export default function Lesson() {
             <CssSandbox onPass={() => setExerciseDone(true)} />
           </section>
         )}
+        {lesson.gitSim && (
+          <section className="mt-14">
+            <h2 className="eyebrow mb-4">Ⅱ · Do</h2>
+            <GitSim objectives={lesson.gitSim} />
+          </section>
+        )}
+
+        {/* 2.5 Predict — mental execution practice */}
+        {lesson.predict && lesson.predict.length > 0 && (
+          <PredictOutput steps={lesson.predict} />
+        )}
 
         {/* 3. Prove it */}
         <section className="mt-14">
-          <h2 className="eyebrow mb-4">{lesson.starter || lesson.sandbox ? "Ⅲ" : "Ⅱ"} · Prove it</h2>
+          <h2 className="eyebrow mb-4">
+            {lesson.starter || lesson.sandbox || lesson.gitSim ? "Ⅲ" : "Ⅱ"} · Prove it
+          </h2>
           <Quiz questions={quiz} onScore={handleScore} />
         </section>
 

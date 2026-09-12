@@ -415,6 +415,41 @@ console.log("loop captured:", printDelayed.join(","));`,
         expr: "output.includes('1') && output.includes('3') && output.includes('loop captured: 0,1,2')",
         hint: "Keep the counter working, and change var i to let i so each iteration keeps its own value.",
       },
+      predict: [
+        {
+          prompt: "What does this print — and why?",
+          code: `for (var i = 0; i < 3; i++) {
+  setTimeout(() => console.log(i), 0);
+}`,
+          options: [
+            "0, 1, 2 — each callback captures its own i",
+            "3, 3, 3 — var is function-scoped, so all three closures share one i that ends at 3",
+            "0, 1, 2, then 3",
+            "Nothing — the loop finishes before setTimeout registers",
+          ],
+          answer: 1,
+          explanation:
+            "var has one binding for the whole function; by the time the timers fire, i is 3. Swap var for let and you get 0, 1, 2 — let creates a fresh binding per iteration.",
+        },
+        {
+          prompt: "And what does this classic return?",
+          code: `function makeCounter() {
+  let count = 0;
+  return function () {
+    count += 1;
+    return count;
+  };
+}
+const c = makeCounter();
+c();
+c();
+console.log(c());`,
+          options: ["0", "1", "3", "undefined"],
+          answer: 2,
+          explanation:
+            "The returned function closes over count, which stays alive between calls. Two calls already ran, so the third returns 3. That persistent private state is the whole power of closures.",
+        },
+      ],
       quiz: [
         {
           q: "What does the temporal dead zone mean?",
@@ -536,6 +571,32 @@ winners.forEach(function (w) {
         expr: "output.includes('winners: Ada, Lin') && output.includes('Ada: 90')",
         hint: "Refactor to (u) => u.points >= 70 and ({ name, points }) => console.log(name + ': ' + points).",
       },
+      predict: [
+        {
+          prompt: "What does this destructuring produce?",
+          code: `const { name, tags: [first] } = { name: "ada", tags: ["eng", "ops"] };
+console.log(name, first);`,
+          options: [
+            "ada [\"eng\", \"ops\"]",
+            "ada eng",
+            "undefined undefined",
+            "It throws — you can't nest destructuring",
+          ],
+          answer: 1,
+          explanation:
+            "`tags: [first]` pulls the tags property AND destructures its first element. Nested destructuring reads one level deeper per bracket.",
+        },
+        {
+          prompt: "What does this spread do?",
+          code: `const base = { role: "member", admin: false };
+const user = { ...base, admin: true };
+console.log(user.role, user.admin);`,
+          options: ["member false", "member true", "true true", "It mutates base"],
+          answer: 1,
+          explanation:
+            "Later keys win: the spread copies base first, then admin: true overrides it. This 'defaults then overrides' pattern is everywhere in real code.",
+        },
+      ],
       quiz: [
         {
           q: "Arrow functions differ from regular functions because they…",
@@ -631,6 +692,30 @@ Why this wins:
 3. **Removing elements can't leak listeners.**
 
 Read \`event.target\` (what was actually hit) vs \`event.currentTarget\` (what the listener is attached to). And call \`event.preventDefault()\` to stop default behaviors — like a form actually submitting.`,
+      predict: [
+        {
+          prompt: "This mini event system prints what? (Same idea as DOM listeners)",
+          code: `const listeners = {};
+function on(evt, fn) {
+  (listeners[evt] ??= []).push(fn);
+}
+function emit(evt) {
+  for (const fn of listeners[evt] ?? []) fn(evt);
+}
+on("click", (e) => console.log("A:", e));
+on("click", (e) => console.log("B:", e));
+emit("click");`,
+          options: [
+            "A: click only — the second on() replaces the first",
+            "B: click then A: click — last registered fires first",
+            "A: click then B: click — handlers fire in registration order",
+            "Nothing — emit needs two arguments",
+          ],
+          answer: 2,
+          explanation:
+            "Each event maps to an ARRAY of listeners; emit walks it front to back. The DOM does exactly this — addEventListener appends, it never replaces (that's the old onclick model).",
+        },
+      ],
       quiz: [
         {
           q: "Event delegation means…",
@@ -755,6 +840,40 @@ main();`,
         expr: "output.includes('batch done') && output.includes('order placed')",
         hint: "Keep both the sequential demo and the Promise.all batch — you should see 'order placed' before 'batch done'.",
       },
+      predict: [
+        {
+          prompt: "In what order do these log?",
+          code: `console.log("start");
+setTimeout(() => console.log("timeout"), 0);
+Promise.resolve().then(() => console.log("promise"));
+console.log("end");`,
+          options: [
+            "start, timeout, promise, end",
+            "start, end, promise, timeout — sync first, then microtasks (promises), then macrotasks (timers)",
+            "start, end, timeout, promise",
+            "start, promise, end, timeout",
+          ],
+          answer: 1,
+          explanation:
+            "After the sync stack drains, the event loop empties ALL microtasks (promise callbacks) before touching the timer queue. setTimeout(0) is never 'immediate'.",
+        },
+        {
+          prompt: "What does this chain print?",
+          code: `Promise.resolve(1)
+  .then((v) => v + 1)
+  .then((v) => { console.log(v); return v * 2; })
+  .then((v) => console.log(v));`,
+          options: [
+            "1 then 2",
+            "2 then 4 — each .then transforms the previous return value",
+            "2 then 2",
+            "undefined then undefined",
+          ],
+          answer: 1,
+          explanation:
+            "Values flow through the chain: 1 becomes 2, gets logged, becomes 4, gets logged. Whatever a .then callback returns is handed to the next one — that's the chaining model.",
+        },
+      ],
       quiz: [
         {
           q: "await can be used…",
@@ -932,6 +1051,149 @@ main();`,
           answer: 1,
           explanation:
             "5xx = server-side failure; 4xx = client-side problem.",
+        },
+      ],
+    },
+    {
+      id: "capstone-utility-belt",
+      title: "Capstone: Build Your Utility Belt",
+      minutes: 25,
+      body: `Everything from this track in one build. You'll write a small **utility library** — the kind of functions real codebases keep in a \`utils/\` folder — with tests baked into the exercise.
+
+**What you're building, function by function:**
+
+\`\`\`
+formatMoney(1234.5)        // "1,234.50"      — grouping + always 2 decimals
+camelToTitle("firstName") // "First Name"     — split camelCase into words
+chunk([1,2,3,4,5], 2)     // [[1,2],[3,4],[5]] — batch arrays into groups
+debounceFlag(logs, 300)   // drops logs within 300ms of the previous one
+uniqueBy(users, "role")   // first user per role — dedupe by a key
+\`\`\`
+
+**Approach that works:** implement ONE function, run, compare against the expected output in the comments, then move on. Don't write all five and start debugging — that's how bugs hide in teams.
+
+**Hints, in increasing spoiler level:**
+- \`formatMoney\`: \`toFixed(2)\` handles decimals; \`Intl.NumberFormat\` does grouping in one line
+- \`camelToTitle\`: \`replace(/[A-Z]/g, ...)\` or split on the regex /(?=[A-Z])/ — mind the first word
+- \`chunk\`: slice doesn't modify the array; the last chunk may be short
+- \`debounceFlag\`: track the timestamp of the last KEPT entry
+- \`uniqueBy\`: a \`Map\` keyed by the property, keep first-wins
+
+This is a real portfolio piece: five tested utilities is a genuinely useful thing to have written once, by hand.`,
+      starter: `// ─── 1 · formatMoney(1234.5) → "1,234.50" ───────────
+function formatMoney(n) {
+  // your code
+  return n;
+}
+console.log("formatMoney:", formatMoney(1234.5));      // 1,234.50
+console.log("formatMoney:", formatMoney(7));           // 7.00
+console.log("formatMoney:", formatMoney(1234567.891)); // 1,234,567.89
+
+// ─── 2 · camelToTitle("firstName") → "First Name" ───
+function camelToTitle(s) {
+  // your code
+  return s;
+}
+console.log("camelToTitle:", camelToTitle("firstName"));    // First Name
+console.log("camelToTitle:", camelToTitle("numberOfUsers")); // Number Of Users
+
+// ─── 3 · chunk([1,2,3,4,5], 2) → [[1,2],[3,4],[5]] ──
+function chunk(arr, size) {
+  // your code
+  return [];
+}
+console.log("chunk:", JSON.stringify(chunk([1, 2, 3, 4, 5], 2)));   // [[1,2],[3,4],[5]]
+console.log("chunk:", JSON.stringify(chunk(["a", "b", "c"], 3)));   // [["a","b","c"]]
+
+// ─── 4 · debounceFlag: keep only logs ≥300ms after the last kept ─
+function debounceFlag(logs, gap) {
+  // logs: { time, msg }[] sorted by time — return the kept ones
+  return [];
+}
+const logs = [
+  { time: 0, msg: "click" },
+  { time: 100, msg: "click" },   // within 300 of kept → dropped
+  { time: 500, msg: "click" },   // kept
+  { time: 600, msg: "click" },   // dropped
+];
+console.log("debounceFlag times:", debounceFlag(logs, 300).map((l) => l.time).join(",")); // 0,500
+
+// ─── 5 · uniqueBy: first item per key value ─────────
+function uniqueBy(items, key) {
+  // your code
+  return [];
+}
+const users = [
+  { name: "Ada", role: "eng" }, { name: "Lin", role: "design" },
+  { name: "Sam", role: "eng" }, { name: "Rey", role: "ops" },
+];console.log("uniqueBy:", uniqueBy(users, "role").map((u) => u.name).join(",")); // Ada,Lin,Rey
+
+// TODO: all 9 outputs must match the comments on the right`,
+      check: {
+        expr:
+          "output.includes('1,234.50') && output.includes('7.00') && output.includes('1,234,567.89') && output.includes('First Name') && output.includes('Number Of Users') && output.includes('[[1,2],[3,4],[5]]') && output.includes('debounceFlag times: 0,500') && output.includes('Ada,Lin,Rey')",
+        hint: "formatMoney: n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }). camelToTitle: s.replace(/([A-Z])/g, ' $1') then fix the first word's casing. chunk: loop i += size and arr.slice(i, i + size). debounceFlag: keep if log.time - lastKept.time >= gap. uniqueBy: new Map keyed by item[key] — set only if absent.",
+      },
+      quiz: [
+        {
+          q: "In formatMoney, toFixed(2) alone fails because…",
+          options: [
+            "It rounds wrong",
+            "It adds no thousands separators",
+            "It returns a number",
+            "It only works on integers",
+          ],
+          answer: 1,
+          explanation:
+            "toFixed handles decimals but not grouping — toLocaleString or Intl.NumberFormat do both.",
+        },
+        {
+          q: "chunk([1,2,3,4,5], 2) — the last chunk has 1 element because…",
+          options: [
+            "slice throws on out-of-range ends",
+            "slice just returns fewer items when the end overshoots",
+            "The loop rounds down",
+            "chunk always drops remainders",
+          ],
+          answer: 1,
+          explanation:
+            "arr.slice(4, 6) on 5 items returns [arr[4]] — slice clamps, it never throws.",
+        },
+        {
+          q: "debounceFlag is O(n) because…",
+          options: [
+            "It uses a Map",
+            "One pass, tracking the last kept timestamp — no rescanning",
+            "It sorts first",
+            "It's actually O(n²)",
+          ],
+          answer: 1,
+          explanation:
+            "Each log is compared to the last KEPT one exactly once — constant work per item.",
+        },
+        {
+          q: "uniqueBy 'first wins' requires…",
+          options: [
+            "Sorting before deduping",
+            "Only setting the map entry when the key isn't there yet",
+            "Reversing the array",
+            "A Set of names",
+          ],
+          answer: 1,
+          explanation:
+            "map.has(key) ? skip : map.set(key, item) — order of checks decides which item survives.",
+        },
+        {
+          q: "The implement-one-then-run discipline prevents…",
+          options: [
+            "Syntax errors",
+            "Bugs piling up in unknown layers — each failure stays local to one function",
+            "The need for tests",
+            "Slow execution",
+          ],
+          answer: 1,
+          explanation:
+            "Five untested functions failing at once gives you five suspects per symptom. Small loops localize failures.",
         },
       ],
     },

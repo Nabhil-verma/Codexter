@@ -57,6 +57,33 @@ describe("curriculum integrity", () => {
     expect(totalLessonCount).toBeGreaterThanOrEqual(30);
   });
 
+  it("every predict challenge has a valid answer and runnable code", async () => {
+    const withPredict = allLessons.filter(({ lesson }) => lesson.predict?.length);
+    expect(withPredict.length).toBeGreaterThanOrEqual(5);
+
+    for (const { track, lesson } of withPredict) {
+      lesson.predict!.forEach((p, i) => {
+        expect(
+          p.options.length,
+          `${track.id}/${lesson.id} predict ${i}`
+        ).toBeGreaterThanOrEqual(3);
+        expect(p.answer, `${track.id}/${lesson.id} predict ${i}`).toBeGreaterThanOrEqual(0);
+        expect(p.answer, `${track.id}/${lesson.id} predict ${i}`).toBeLessThan(p.options.length);
+        expect(p.explanation.length, `${track.id}/${lesson.id} predict ${i}`).toBeGreaterThan(5);
+      });
+      // predict snippets must execute cleanly so the "verify by running" button works
+      for (const [i, p] of (lesson.predict ?? []).entries()) {
+        if (!/^\s*(#|def |print|\w+ =)/.test(p.code) || /console\.log/.test(p.code)) {
+          const r = await runUserCode(p.code);
+          expect(
+            r.error,
+            `${track.id}/${lesson.id} predict ${i} failed to run: ${r.error}`
+          ).toBeNull();
+        }
+      }
+    }
+  }, 30_000);
+
   it(
     "every interactive starter runs cleanly and every check expression compiles",
     async () => {

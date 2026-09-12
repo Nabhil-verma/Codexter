@@ -54,6 +54,44 @@ console.log("done scheduling — event loop takes over");`,
         expr: "output.includes('4: promise') && output.includes('5: timeout') && output.indexOf('4: promise') < output.indexOf('5: timeout')",
         hint: "Microtasks (promises) must print BEFORE the timeout — if not, check your understanding of the loop.",
       },
+      predict: [
+        {
+          prompt: "In what order do these lines print in Node?",
+          code: `console.log("1: sync");
+setTimeout(() => console.log("2: timeout"), 0);
+Promise.resolve().then(() => console.log("3: promise"));
+console.log("4: sync");`,
+          options: [
+            "1, 2, 3, 4 — setTimeout(0) runs immediately after",
+            "1, 4, 3, 2 — sync code, then microtasks (promises), then macrotasks (timers)",
+            "1, 4, 2, 3 — timers always beat promises",
+            "1, 3, 4, 2",
+          ],
+          answer: 1,
+          explanation:
+            "The event loop drains ALL microtasks (promise callbacks) after the sync stack finishes, before touching the timer queue. This exact ordering question shows up in half of all Node interviews.",
+        },
+        {
+          prompt: "What does this middleware chain print when a request arrives?",
+          code: `// a 10-line model of Express middleware
+const stack = [];
+const app = {
+  use(fn) { stack.push(fn); },
+  handle() {
+    let i = 0;
+    const next = () => { if (i < stack.length) stack[i++](next); };
+    next();
+  },
+};
+app.use((next) => { console.log("A"); next(); console.log("B"); });
+app.use((next) => { console.log("C"); next(); });
+app.handle();`,
+          options: ["A C B — the stack unwinds after next()", "A B C", "A C", "C A B"],
+          answer: 0,
+          explanation:
+            "Middleware is an onion: A runs, next() descends to C, and when the inner layer returns, B runs on the way back out. That's why timing code goes AFTER next() — it measures the whole inner stack.",
+        },
+      ],
       quiz: [
         {
           q: "Node's default model is…",
