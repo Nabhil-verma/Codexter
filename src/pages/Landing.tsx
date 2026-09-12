@@ -101,9 +101,11 @@ export default function Landing() {
             <Link to="/learn" className="btn-gold">
               Start learning free →
             </Link>
-            <a href="#tracks" className="btn-ghost">
+            {/* HashRouter: the hash IS the route, so a plain #tracks anchor
+                would navigate away from the app — scroll programmatically. */}
+            <button type="button" className="btn-ghost" onClick={() => document.getElementById("tracks")?.scrollIntoView({ behavior: "smooth" })}>
               See the curriculum
-            </a>
+            </button>
           </div>
 
           {/* Hero terminal */}
