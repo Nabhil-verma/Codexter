@@ -103,7 +103,11 @@ export default function Learn() {
                           </span>
                           <span className="block font-mono text-xs text-ink-600">
                             {lesson.minutes} min ·{" "}
-                            {lesson.starter ? "interactive" : "reading"} ·{" "}
+                            {lesson.starter
+                              ? "interactive"
+                              : lesson.sandbox
+                                ? "visual"
+                                : "reading"} ·{" "}
                             {lesson.quiz.length} quiz questions
                           </span>
                         </span>

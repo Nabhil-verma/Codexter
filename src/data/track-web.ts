@@ -100,6 +100,7 @@ export const webTrack: Track = {
       title: "Flexbox, Grid & Responsive Strategy",
       minutes: 12,
       reading: true,
+      sandbox: true,
       body: `Two layout systems, two mindsets:
 
 **Flexbox** — one dimension at a time. Content flows along a main axis; great for toolbars, nav rows, centering.

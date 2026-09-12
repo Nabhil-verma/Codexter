@@ -17,6 +17,8 @@ export type Lesson = {
   minutes: number;
   /** Reading lessons have no runnable exercise — body + quiz only */
   reading?: boolean;
+  /** Mounts the visual CSS flexbox/grid sandbox instead of the code playground */
+  sandbox?: boolean;
   /** Markdown-lite: paragraphs separated by \n\n, `code`, **bold**, and ```fenced``` blocks */
   body: string;
   starter?: string;
