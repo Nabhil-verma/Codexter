@@ -11,7 +11,7 @@ function Inline({ text }: { text: string }) {
           return (
             <code
               key={i}
-              className="rounded bg-ink-800 px-1.5 py-0.5 font-mono text-[0.85em] text-mint-300"
+              className="rounded-md bg-paper-100 px-1.5 py-0.5 font-mono text-[0.85em] text-gold-700"
             >
               {p.slice(1, -1)}
             </code>
@@ -19,7 +19,7 @@ function Inline({ text }: { text: string }) {
         }
         if (p.startsWith("**") && p.endsWith("**")) {
           return (
-            <strong key={i} className="font-semibold text-white">
+            <strong key={i} className="font-semibold text-ink-950">
               {p.slice(2, -2)}
             </strong>
           );
@@ -35,7 +35,7 @@ export default function LessonBody({ lesson }: { lesson: Lesson }) {
   const segments = lesson.body.split(/```(?:\w*\n)?([\s\S]*?)```/g);
 
   return (
-    <div className="space-y-4 leading-relaxed text-slate-300">
+    <div className="space-y-5 text-[17px] leading-relaxed text-ink-700">
       {segments.map((seg, i) =>
         i % 2 === 1 ? (
           <CodeBlock key={i} code={seg.replace(/\n$/, "")} />

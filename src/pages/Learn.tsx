@@ -17,11 +17,14 @@ export default function Learn() {
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="mx-auto max-w-4xl px-4 py-12">
+      <main className="mx-auto max-w-4xl px-4 py-16">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-white">All lessons</h1>
-            <p className="mt-2 text-slate-400">
+            <p className="eyebrow">The curriculum</p>
+            <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight text-ink-950">
+              All lessons
+            </h1>
+            <p className="mt-3 max-w-lg text-ink-600">
               Work through the tracks in order, or jump to whatever looks useful.
             </p>
           </div>
@@ -33,40 +36,44 @@ export default function Learn() {
                   location.reload();
                 }
               }}
-              className="rounded-lg border border-ink-700 px-3 py-1.5 font-mono text-xs text-slate-400 transition hover:border-red-500/50 hover:text-red-300"
+              className="rounded-full border border-paper-300 px-4 py-1.5 font-mono text-xs text-ink-600 transition hover:border-gold-400 hover:text-gold-600"
             >
               reset progress
             </button>
           )}
         </div>
 
-        <div className="mt-6">
-          <div className="flex items-center justify-between font-mono text-xs text-slate-500">
+        <div className="mt-8">
+          <div className="flex items-center justify-between font-mono text-xs text-ink-600">
             <span>
-              <span className="text-mint-400">{doneCount}</span> of{" "}
-              {totalLessonCount} lessons complete
+              <span className="text-gold-600">{doneCount}</span> of {totalLessonCount}{" "}
+              lessons complete
             </span>
             <span>{pct}%</span>
           </div>
-          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-ink-700">
+          <div className="mt-2 h-px w-full bg-paper-200">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-mint-600 to-mint-400 transition-all"
+              className="h-px bg-gold-400 transition-all"
               style={{ width: pct + "%" }}
             />
           </div>
         </div>
 
-        <div className="mt-10 space-y-10">
+        <div className="mt-14 space-y-12">
           {tracks.map((track) => (
             <section key={track.id}>
-              <div className="mb-4 flex items-center gap-3">
-                <span className="text-2xl">{track.emoji}</span>
+              <div className="mb-5 flex items-baseline gap-4 border-b border-paper-200 pb-4">
+                <span className="font-display text-2xl text-gold-500">
+                  {String(tracks.indexOf(track) + 1).padStart(2, "0")}
+                </span>
                 <div>
-                  <h2 className="text-xl font-bold text-white">{track.title}</h2>
-                  <p className="text-sm text-slate-400">{track.blurb}</p>
+                  <h2 className="font-display text-2xl font-semibold text-ink-950">
+                    {track.title}
+                  </h2>
+                  <p className="text-sm text-ink-600">{track.blurb}</p>
                 </div>
               </div>
-              <ol className="space-y-2">
+              <ol className="space-y-1">
                 {track.lessons.map((lesson, i) => {
                   const key = lessonKey(track.id, lesson.id);
                   const score = progress.completed[key] ?? 0;
@@ -76,29 +83,31 @@ export default function Learn() {
                     <li key={lesson.id}>
                       <Link
                         to={"/learn/" + track.id + "/" + lesson.id}
-                        className="card flex items-center gap-4 px-5 py-4 transition hover:border-mint-500/50"
+                        className="group flex items-center gap-4 rounded-xl px-4 py-4 transition hover:bg-paper-100"
                       >
                         <span
                           className={
-                            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-mono text-sm font-bold " +
+                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-bold transition " +
                             (done
-                              ? "bg-mint-500 text-ink-950"
+                              ? "border-gold-400 bg-gold-400 text-ink-950"
                               : started
-                                ? "bg-mint-500/20 text-mint-300"
-                                : "bg-ink-700 text-slate-400")
+                                ? "border-gold-400/60 text-gold-600"
+                                : "border-paper-300 text-ink-600")
                           }
                         >
-                          {done ? "✓" : i + 1}
+                          {done ? "✓" : String(i + 1).padStart(2, "0")}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block font-semibold text-white">
+                          <span className="block font-display text-lg font-medium text-ink-950 group-hover:text-gold-600">
                             {lesson.title}
                           </span>
-                          <span className="block font-mono text-xs text-slate-500">
+                          <span className="block font-mono text-xs text-ink-600">
                             {lesson.minutes} min · {lesson.quiz.length} quiz questions
                           </span>
                         </span>
-                        <span className="font-mono text-sm text-slate-500">→</span>
+                        <span className="font-mono text-sm text-ink-600 opacity-0 transition group-hover:translate-x-1 group-hover:opacity-100">
+                          →
+                        </span>
                       </Link>
                     </li>
                   );

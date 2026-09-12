@@ -50,26 +50,26 @@ export default function Playground({ starter, check, onPass }: Props) {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="code-window">
-        <div className="flex items-center justify-between border-b border-ink-700 bg-ink-850 px-3 py-1.5">
+    <div className="space-y-4">
+      <div className="code-window shadow-lift">
+        <div className="flex items-center justify-between border-b border-ink-800 px-4 py-2.5">
           <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-red-500/80" />
-            <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/80" />
-            <span className="h-2.5 w-2.5 rounded-full bg-green-500/80" />
-            <span className="ml-2 font-mono text-xs text-slate-500">editor.js</span>
+            <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />
+            <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />
+            <span className="h-2.5 w-2.5 rounded-full bg-gold-400" />
+            <span className="ml-2 font-mono text-xs text-ink-600">editor.js</span>
           </div>
           <div className="flex gap-2">
             <button
               onClick={reset}
-              className="rounded-md px-2.5 py-1 font-mono text-xs text-slate-400 transition hover:bg-ink-700 hover:text-white"
+              className="rounded-full px-3 py-1 font-mono text-xs text-ink-600 transition hover:bg-ink-800 hover:text-paper-100"
             >
               reset
             </button>
             <button
               onClick={run}
               title="Cmd/Ctrl+Enter"
-              className="rounded-md bg-mint-500 px-3 py-1 font-mono text-xs font-bold text-ink-950 transition hover:bg-mint-400"
+              className="rounded-full bg-gold-400 px-4 py-1 font-mono text-xs font-bold text-ink-950 transition hover:bg-gold-300"
             >
               ▶ Run
             </button>
@@ -82,20 +82,20 @@ export default function Playground({ starter, check, onPass }: Props) {
           onKeyDown={onKeyDown}
           spellCheck={false}
           rows={Math.max(8, Math.min(20, code.split("\n").length + 1))}
-          className="block w-full resize-y bg-ink-900 p-4 font-mono text-[13px] leading-relaxed text-slate-200 outline-none placeholder:text-slate-600"
+          className="block w-full resize-y bg-ink-950 p-5 font-mono text-[13px] leading-relaxed text-paper-100 outline-none placeholder:text-ink-600"
           placeholder="Write some JavaScript…"
         />
       </div>
 
       <div className="code-window">
-        <div className="border-b border-ink-700 bg-ink-850 px-3 py-1.5 font-mono text-xs text-slate-500">
+        <div className="border-b border-ink-800 px-4 py-2.5 font-mono text-xs text-ink-600">
           console
         </div>
-        <div className="max-h-64 overflow-auto p-4 font-mono text-[13px] leading-relaxed">
-          {!result && <p className="text-slate-600">// press Run to see output</p>}
+        <div className="max-h-64 overflow-auto p-5 font-mono text-[13px] leading-relaxed">
+          {!result && <p className="text-ink-600">// press Run to see output</p>}
           {result?.logs.map((line, i) => (
-            <div key={i} className="whitespace-pre-wrap text-slate-300">
-              <span className="mr-2 select-none text-slate-600">›</span>
+            <div key={i} className="whitespace-pre-wrap text-paper-300">
+              <span className="mr-2 select-none text-gold-500">›</span>
               {line}
             </div>
           ))}
@@ -103,7 +103,7 @@ export default function Playground({ starter, check, onPass }: Props) {
             <div className="mt-2 whitespace-pre-wrap text-red-400">✗ {result.error}</div>
           )}
           {result && !result.error && result.logs.length === 0 && (
-            <p className="text-slate-600">(no output — did you call console.log?)</p>
+            <p className="text-ink-600">(no output — did you call console.log?)</p>
           )}
         </div>
       </div>
@@ -111,19 +111,22 @@ export default function Playground({ starter, check, onPass }: Props) {
       {check && (
         <div
           className={
-            "rounded-xl border px-4 py-3 text-sm " +
+            "rounded-2xl border px-5 py-4 text-sm " +
             (passed
-              ? "border-mint-500/50 bg-mint-500/10 text-mint-300"
-              : "border-ink-700 bg-ink-850 text-slate-400")
+              ? "border-gold-400/60 bg-gold-400/10 text-ink-800"
+              : "border-paper-200 bg-paper-50 text-ink-600")
           }
         >
           {passed ? (
             <span>
-              ✓ Exercise passed! <strong className="text-white">Nice work.</strong>
+              <span className="mr-2 text-gold-600">✓</span>
+              <strong className="font-semibold text-ink-950">Exercise passed.</strong>{" "}
+              Elegant work.
             </span>
           ) : (
             <span>
-              <strong className="text-slate-200">Goal:</strong> {check.hint}
+              <strong className="font-semibold text-ink-950">Goal</strong>{" "}
+              <span className="mx-1 text-gold-500">·</span> {check.hint}
             </span>
           )}
         </div>

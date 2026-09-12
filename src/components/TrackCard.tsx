@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { Track } from "../data/curriculum";
+import { tracks } from "../data/curriculum";
 import { loadProgress, type Progress } from "../lib/progress";
 
 export function trackProgress(track: Track, progress: Progress) {
@@ -16,27 +17,32 @@ export default function TrackCard({ track }: { track: Track }) {
 
   return (
     <Link
-      to={"/learn/" + track.id}
-      className="card group flex flex-col gap-3 p-6 transition hover:border-mint-500/50 hover:shadow-glow"
+      to={"/learn/" + track.id + "/" + track.lessons[0].id}
+      className="card card-hover group flex flex-col gap-4 p-7"
     >
       <div className="flex items-start justify-between">
-        <span className="text-3xl transition group-hover:scale-110">{track.emoji}</span>
-        <span className="font-mono text-xs text-slate-500">
+        <span className="font-display text-3xl text-gold-500">
+          {String(tracks.indexOf(track) + 1).padStart(2, "0")}
+        </span>
+        <span className="font-mono text-xs text-ink-600">
           {done}/{total} lessons
         </span>
       </div>
       <div>
-        <h3 className="text-lg font-bold text-white transition group-hover:text-mint-300">
+        <h3 className="font-display text-xl font-semibold text-ink-950 transition group-hover:text-gold-600">
           {track.title}
         </h3>
-        <p className="mt-1 text-sm leading-relaxed text-slate-400">{track.blurb}</p>
+        <p className="mt-2 text-sm leading-relaxed text-ink-600">{track.blurb}</p>
       </div>
-      <div className="mt-auto h-1.5 overflow-hidden rounded-full bg-ink-700">
+      <div className="mt-auto h-px w-full bg-paper-200">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-mint-600 to-mint-400 transition-all"
+          className="h-px bg-gold-400 transition-all"
           style={{ width: pct + "%" }}
         />
       </div>
+      <span className="font-mono text-xs text-gold-600 transition group-hover:translate-x-1">
+        begin →
+      </span>
     </Link>
   );
 }

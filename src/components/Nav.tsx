@@ -14,30 +14,30 @@ export default function Nav() {
   const done = Object.keys(progress.completed).length;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-ink-700 bg-ink-950/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link to="/" className="group flex items-center gap-2 font-mono text-sm font-semibold">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-mint-500 font-bold text-ink-950 transition group-hover:shadow-glow">
+    <header className="sticky top-0 z-40 border-b border-paper-200 bg-paper/85 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <Link to="/" className="group flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-950 font-mono text-xs font-bold text-gold-400 transition group-hover:shadow-glow">
             &lt;/&gt;
           </span>
-          <span>
-            code-learn<span className="text-mint-400">.reimagined</span>
+          <span className="font-display text-lg font-semibold tracking-tight text-ink-950">
+            code-learn<span className="text-gold-500">.reimagined</span>
           </span>
         </Link>
         <nav className="flex items-center gap-2 text-sm">
           <Link
             to="/learn"
             className={
-              "rounded-lg px-3 py-1.5 font-medium transition " +
+              "rounded-full px-4 py-1.5 font-medium transition " +
               (location.pathname.startsWith("/learn")
-                ? "bg-ink-800 text-mint-300"
-                : "text-slate-300 hover:bg-ink-800 hover:text-white")
+                ? "bg-ink-950 text-paper-50"
+                : "text-ink-700 hover:bg-paper-100")
             }
           >
             Lessons
           </Link>
-          <span className="hidden items-center gap-1.5 rounded-lg border border-ink-700 px-3 py-1.5 font-mono text-xs text-slate-400 sm:flex">
-            <span className="text-mint-400">{done}</span>/{totalLessonCount} done
+          <span className="hidden items-center gap-1.5 rounded-full border border-paper-200 px-3 py-1.5 font-mono text-xs text-ink-600 sm:flex">
+            <span className="text-gold-600">{done}</span>/{totalLessonCount} done
           </span>
         </nav>
       </div>

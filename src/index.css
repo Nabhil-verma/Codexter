@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html {
@@ -11,11 +11,11 @@ html {
 }
 
 body {
-  @apply bg-ink-950 text-slate-200 font-sans antialiased;
+  @apply bg-paper text-ink-900 font-sans antialiased;
 }
 
 ::selection {
-  @apply bg-mint-500/30 text-white;
+  @apply bg-gold-400/25 text-ink-950;
 }
 
 ::-webkit-scrollbar {
@@ -23,27 +23,39 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #0d1117;
+  background: #f4f1ea;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a3342;
+  background: #d9d2c0;
   border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a4657;
+  background: #c9c1aa;
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center gap-2 rounded-lg bg-mint-500 px-5 py-2.5 font-semibold text-ink-950 transition hover:bg-mint-400 hover:shadow-glow focus:outline-none focus-visible:ring-2 focus-visible:ring-mint-400/60;
+    @apply inline-flex items-center gap-2 rounded-full bg-ink-950 px-6 py-2.5 font-semibold text-paper-50 transition hover:bg-ink-800 hover:shadow-lift focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400;
+  }
+  .btn-gold {
+    @apply inline-flex items-center gap-2 rounded-full bg-gold-400 px-6 py-2.5 font-semibold text-ink-950 transition hover:bg-gold-300 hover:shadow-glow focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-500;
   }
   .btn-ghost {
-    @apply inline-flex items-center gap-2 rounded-lg border border-ink-600 px-5 py-2.5 font-semibold text-slate-200 transition hover:border-mint-500/60 hover:text-mint-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-mint-400/60;
+    @apply inline-flex items-center gap-2 rounded-full border border-paper-300 px-6 py-2.5 font-semibold text-ink-900 transition hover:border-gold-400 hover:text-gold-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400;
   }
   .card {
-    @apply rounded-2xl border border-ink-700 bg-ink-850;
+    @apply rounded-2xl border border-paper-200 bg-paper-50 shadow-lift;
+  }
+  .card-hover {
+    @apply transition hover:border-gold-400/60 hover:shadow-glow;
   }
   .code-window {
-    @apply overflow-hidden rounded-xl border border-ink-700 bg-ink-900;
+    @apply overflow-hidden rounded-xl bg-ink-950;
+  }
+  .hairline {
+    @apply border-paper-200;
+  }
+  .eyebrow {
+    @apply font-mono text-xs uppercase tracking-[0.2em] text-gold-600;
   }
 }
