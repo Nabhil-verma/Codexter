@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { runUserCode, evaluateCheck, type RunResult } from "../lib/runner";
-import type { Check } from "../data/curriculum";
+import type { Check } from "../data/types";
 
 type Props = {
   starter: string;
@@ -11,17 +11,20 @@ type Props = {
 export default function Playground({ starter, check, onPass }: Props) {
   const [code, setCode] = useState(starter);
   const [result, setResult] = useState<RunResult | null>(null);
+  const [running, setRunning] = useState(false);
   const [passed, setPassed] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  const run = () => {
-    const r = runUserCode(code);
+  const run = async () => {
+    setRunning(true);
+    const r = await runUserCode(code);
     setResult(r);
     if (check) {
       const ok = !r.error && evaluateCheck(check.expr, r.logs.join("\n"));
       setPassed(ok);
       if (ok) onPass?.();
     }
+    setRunning(false);
   };
 
   const reset = () => {
@@ -34,7 +37,7 @@ export default function Playground({ starter, check, onPass }: Props) {
     // Cmd/Ctrl+Enter runs the code
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
-      run();
+      void run();
       return;
     }
     // Tab inserts two spaces instead of leaving the textarea
@@ -67,11 +70,12 @@ export default function Playground({ starter, check, onPass }: Props) {
               reset
             </button>
             <button
-              onClick={run}
+              onClick={() => void run()}
+              disabled={running}
               title="Cmd/Ctrl+Enter"
-              className="rounded-full bg-gold-400 px-4 py-1 font-mono text-xs font-bold text-ink-950 transition hover:bg-gold-300"
+              className="rounded-full bg-gold-400 px-4 py-1 font-mono text-xs font-bold text-ink-950 transition hover:bg-gold-300 disabled:opacity-50"
             >
-              ▶ Run
+              {running ? "running…" : "▶ Run"}
             </button>
           </div>
         </div>
@@ -81,7 +85,7 @@ export default function Playground({ starter, check, onPass }: Props) {
           onChange={(e) => setCode(e.target.value)}
           onKeyDown={onKeyDown}
           spellCheck={false}
-          rows={Math.max(8, Math.min(20, code.split("\n").length + 1))}
+          rows={Math.max(8, Math.min(24, code.split("\n").length + 1))}
           className="block w-full resize-y bg-ink-950 p-5 font-mono text-[13px] leading-relaxed text-paper-100 outline-none placeholder:text-ink-600"
           placeholder="Write some JavaScript…"
         />
@@ -91,7 +95,7 @@ export default function Playground({ starter, check, onPass }: Props) {
         <div className="border-b border-ink-800 px-4 py-2.5 font-mono text-xs text-ink-600">
           console
         </div>
-        <div className="max-h-64 overflow-auto p-5 font-mono text-[13px] leading-relaxed">
+        <div className="max-h-72 overflow-auto p-5 font-mono text-[13px] leading-relaxed">
           {!result && <p className="text-ink-600">// press Run to see output</p>}
           {result?.logs.map((line, i) => (
             <div key={i} className="whitespace-pre-wrap text-paper-300">

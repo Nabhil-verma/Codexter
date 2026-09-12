@@ -9,7 +9,7 @@ import {
   findLesson,
   lessonKey,
   type QuizQuestion,
-} from "../data/curriculum";
+} from "../data";
 import { loadProgress, useProgress } from "../lib/progress";
 
 export default function Lesson() {
@@ -68,6 +68,8 @@ export default function Lesson() {
         <p className="mt-2 flex items-center gap-3 font-mono text-xs text-ink-600">
           <span>{lesson.minutes} min</span>
           <span className="text-gold-500">·</span>
+          <span>{lesson.starter ? "interactive" : "reading"}</span>
+          <span className="text-gold-500">·</span>
           {completed ? (
             <span className="text-gold-600">✓ completed</span>
           ) : (
@@ -81,19 +83,21 @@ export default function Lesson() {
           <LessonBody lesson={lesson} />
         </section>
 
-        {/* 2. Run */}
-        <section className="mt-14">
-          <h2 className="eyebrow mb-4">Ⅱ · Run</h2>
-          <Playground
-            starter={lesson.starter}
-            check={lesson.check}
-            onPass={() => setExerciseDone(true)}
-          />
-        </section>
+        {/* 2. Run — interactive lessons only */}
+        {lesson.starter && (
+          <section className="mt-14">
+            <h2 className="eyebrow mb-4">Ⅱ · Run</h2>
+            <Playground
+              starter={lesson.starter}
+              check={lesson.check}
+              onPass={() => setExerciseDone(true)}
+            />
+          </section>
+        )}
 
         {/* 3. Prove it */}
         <section className="mt-14">
-          <h2 className="eyebrow mb-4">Ⅲ · Prove it</h2>
+          <h2 className="eyebrow mb-4">{lesson.starter ? "Ⅲ" : "Ⅱ"} · Prove it</h2>
           <Quiz questions={quiz} onScore={handleScore} />
         </section>
 

@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
-import type { Track } from "../data/curriculum";
-import { tracks } from "../data/curriculum";
+import { tracks, type Track } from "../data";
 import { loadProgress, type Progress } from "../lib/progress";
 
 export function trackProgress(track: Track, progress: Progress) {

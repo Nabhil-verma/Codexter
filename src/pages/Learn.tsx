@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import Nav from "../components/Nav";
-import { tracks, lessonKey, totalLessonCount } from "../data/curriculum";
+import { tracks, lessonKey, totalLessonCount } from "../data";
 import { loadProgress } from "../lib/progress";
 
 export default function Learn() {
@@ -102,7 +102,9 @@ export default function Learn() {
                             {lesson.title}
                           </span>
                           <span className="block font-mono text-xs text-ink-600">
-                            {lesson.minutes} min · {lesson.quiz.length} quiz questions
+                            {lesson.minutes} min ·{" "}
+                            {lesson.starter ? "interactive" : "reading"} ·{" "}
+                            {lesson.quiz.length} quiz questions
                           </span>
                         </span>
                         <span className="font-mono text-sm text-ink-600 opacity-0 transition group-hover:translate-x-1 group-hover:opacity-100">

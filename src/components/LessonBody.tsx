@@ -1,5 +1,5 @@
 import CodeBlock from "./CodeBlock";
-import type { Lesson } from "../data/curriculum";
+import type { Lesson } from "../data/types";
 
 function Inline({ text }: { text: string }) {
   // Split on `code` and **bold** segments

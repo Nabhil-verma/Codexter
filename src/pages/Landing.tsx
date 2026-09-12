@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import Nav from "../components/Nav";
 import TrackCard from "../components/TrackCard";
-import { tracks, totalLessonCount, findTrack } from "../data/curriculum";
+import { tracks, totalLessonCount, findTrack } from "../data";
 import { loadProgress } from "../lib/progress";
 
 const features = [

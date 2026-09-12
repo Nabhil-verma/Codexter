@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { loadProgress, type Progress } from "../lib/progress";
-import { totalLessonCount } from "../data/curriculum";
+import { totalLessonCount } from "../data";
 
 export default function Nav() {
   const [progress, setProgress] = useState<Progress>({ completed: {} });

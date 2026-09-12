@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { QuizQuestion } from "../data/curriculum";
+import type { QuizQuestion } from "../data/types";
 
 type Props = {
   questions: QuizQuestion[];
