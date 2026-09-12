@@ -603,6 +603,152 @@ console.log("maxWindowSum([1,9,2,8], 2) →", maxWindowSum([1, 9, 2, 8], 2));   
       ],
     },
     {
+      id: "graphs-bfs-dfs",
+      title: "Graphs: BFS & DFS",
+      minutes: 12,
+      body: `A **graph** is nodes + edges — social networks, maps, dependencies. Store it as an adjacency list:
+
+\`\`\`
+const graph = new Map();
+function addEdge(a, b) {
+  if (!graph.has(a)) graph.set(a, []);
+  if (!graph.has(b)) graph.set(b, []);
+  graph.get(a).push(b);
+  graph.get(b).push(a); // undirected
+}
+\`\`\`
+
+**Two traversals, two souls:**
+
+**BFS** — a queue. Explores in rings: all distance-1 nodes, then distance-2… This is why BFS finds **shortest paths in unweighted graphs**.
+
+\`\`\`
+function bfs(graph, start) {
+  const visited = new Set([start]);
+  const queue = [start];
+  const order = [];
+  while (queue.length) {
+    const node = queue.shift();
+    order.push(node);
+    for (const nb of graph.get(node) ?? []) {
+      if (!visited.has(nb)) { visited.add(nb); queue.push(nb); }
+    }
+  }
+  return order;
+}
+\`\`\`
+
+**DFS** — a stack (or recursion, which IS a stack). Dives deep before backing up. Great for cycle detection, topological sort, connected components.
+
+\`\`\`
+function dfs(graph, node, visited = new Set(), order = []) {
+  visited.add(node);
+  order.push(node);
+  for (const nb of graph.get(node) ?? []) {
+    if (!visited.has(nb)) dfs(graph, nb, visited, order);
+  }
+  return order;
+}
+\`\`\`
+
+**The shared skeleton:** visited-set + frontier (queue vs stack) + neighbor loop. Both are O(V + E).
+
+**Signal phrases:** "fewest steps/moves" → BFS. "all paths / detect cycle / count regions" → DFS. "weighted shortest path" → Dijkstra (BFS with a priority queue).`,
+      starter: `const graph = new Map();
+function addEdge(a, b) {
+  if (!graph.has(a)) graph.set(a, []);
+  if (!graph.has(b)) graph.set(b, []);
+  graph.get(a).push(b);
+  graph.get(b).push(a);
+}
+
+["A","B"], ["A","C"], ["B","D"], ["C","E"], ["D","E"].forEach(
+  ([a, b]) => addEdge(a, b)
+);
+
+function bfs(graph, start) {
+  const visited = new Set([start]);
+  const queue = [start];
+  const order = [];
+  while (queue.length) {
+    const node = queue.shift();
+    order.push(node);
+    for (const nb of graph.get(node) ?? []) {
+      if (!visited.has(nb)) { visited.add(nb); queue.push(nb); }
+    }
+  }
+  return order;
+}
+
+function dfs(graph, node, visited = new Set(), order = []) {
+  visited.add(node);
+  order.push(node);
+  for (const nb of graph.get(node) ?? []) {
+    if (!visited.has(nb)) dfs(graph, nb, visited, order);
+  }
+  return order;
+}
+
+console.log("BFS from A:", bfs(graph, "A").join(" "));
+console.log("DFS from A:", dfs(graph, "A").join(" "));
+
+// TODO: shortest path length from A to E (BFS level counting)
+function shortestDist(graph, start, end) {
+  // track (node, distance) pairs in the queue
+  return -1;
+}
+console.log("shortest A→E:", shortestDist(graph, "A", "E")); // 3? count the hops!`,
+      check: {
+        expr: "output.includes('BFS from A: A B C D E') && output.includes('shortest A→E: 3')",
+        hint: "BFS visits rings outward (A, then B/C, then D/E). Distance A→E via B or C then D is 3 hops... check your count: A→C→E is 2 hops, so expect 2.",
+      },
+      quiz: [
+        {
+          q: "BFS finds shortest paths when…",
+          options: [
+            "Edges have weights",
+            "All edges have equal weight (unweighted graphs)",
+            "The graph is a tree",
+            "Never",
+          ],
+          answer: 1,
+          explanation:
+            "Ring-by-ring exploration means the first arrival is the fewest-hops path.",
+        },
+        {
+          q: "The data structure difference: BFS uses ___, DFS uses ___.",
+          options: ["stack, queue", "queue, stack", "heap, set", "map, array"],
+          answer: 1,
+          explanation:
+            "FIFO breadth vs LIFO depth — everything else is identical.",
+        },
+        {
+          q: "Recursion-based DFS relies on…",
+          options: ["The heap", "The call stack as its stack", "A Map", "The event loop"],
+          answer: 1,
+          explanation: "Each call frame is a pending 'return here' — a stack.",
+        },
+        {
+          q: "Without a visited set, traversal on a cyclic graph…",
+          options: [
+            "Skips nodes",
+            "Loops forever",
+            "Sorts the graph",
+            "Works fine",
+          ],
+          answer: 1,
+          explanation: "Cycles mean you can revisit nodes infinitely — mark everything you've seen.",
+        },
+        {
+          q: "'Minimum number of moves in a maze' is a classic…",
+          options: ["DFS", "BFS", "Quick sort", "Hash map"],
+          answer: 1,
+          explanation:
+            "Fewest moves = shortest unweighted path = BFS.",
+        },
+      ],
+    },
+    {
       id: "dp-intro",
       title: "Dynamic Programming: Overlapping Subproblems",
       minutes: 11,

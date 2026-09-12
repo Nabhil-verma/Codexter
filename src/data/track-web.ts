@@ -96,6 +96,176 @@ export const webTrack: Track = {
       ],
     },
     {
+      id: "box-model-deep",
+      title: "The Box Model, Margins & Collapsing",
+      minutes: 9,
+      reading: true,
+      body: `Every element is a **box of nested layers** — margin, border, padding, content — and layout bugs are usually box-model bugs.
+
+\`\`\`
+.card {
+  width: 300px;
+  padding: 20px;
+  border: 2px solid;
+  /* content-box: real width = 300 + 40 + 4 = 344px 😱 */
+  box-sizing: border-box; /* real width = 300px ✓ */
+}
+\`\`\`
+
+Modern resets make \`border-box\` the default — but know what the legacy behavior is, because you'll meet it in old code.
+
+**Margin collapsing** surprises everyone: vertical margins between siblings **merge** into the larger one instead of adding. Two stacked cards with 20px margins sit 20px apart, not 40px.
+
+\`\`\`
+/* margins collapse here */
+.card + .card { margin-top: 20px; }
+
+/* they don't collapse across padding/border/flex/grid */
+.stack { display: grid; gap: 20px; }
+\`\`\`
+
+**The collapse rules that matter:**
+1. Adjacent siblings collapse (max wins)
+2. Parent and first/last child collapse — unless the parent has padding/border between them
+3. Flex/grid containers never collapse margins — one reason they're layout safe-havens
+4. Horizontal margins never collapse
+
+**Auto margins** center blocks: \`margin: 0 auto\` on a fixed-width element is the classic centering move.
+
+Debug habit: in DevTools, the box-model diagram at the bottom of the Elements panel shows every layer's exact pixels — read it before you guess.`,
+      quiz: [
+        {
+          q: "With box-sizing: content-box, a 300px-wide element with 20px padding and 2px border is really…",
+          options: ["300px", "322px", "344px", "360px"],
+          answer: 2,
+          explanation: "300 + 40 (padding) + 4 (border) = 344px — the classic surprise.",
+        },
+        {
+          q: "Two siblings with margin-bottom: 20px and margin-top: 30px sit apart by…",
+          options: ["50px", "30px", "20px", "10px"],
+          answer: 1,
+          explanation: "Vertical margins collapse to the max — 30px.",
+        },
+        {
+          q: "Which container never collapses child margins?",
+          options: ["display: block", "display: flex", "display: inline", "display: table-row"],
+          answer: 1,
+          explanation: "Flex and grid establish new formatting contexts — no collapsing inside.",
+        },
+        {
+          q: "margin: 0 auto centers an element when…",
+          options: [
+            "The element has a width and is block-level",
+            "The element is inline",
+            "Always, even full-width",
+            "Only inside flex containers",
+          ],
+          answer: 0,
+          explanation: "Auto margins eat free horizontal space — which requires a width to be free.",
+        },
+        {
+          q: "The fastest way to see which layer ate your spacing?",
+          options: [
+            "Guess and add !important",
+            "The box-model diagram in DevTools",
+            "console.log the element",
+            "Delete CSS until it looks right",
+          ],
+          answer: 1,
+          explanation: "The diagram shows computed margin/border/padding/content pixel-exactly.",
+        },
+      ],
+    },
+    {
+      id: "responsive-deep",
+      title: "Responsive Design: Mobile-First in Practice",
+      minutes: 10,
+      reading: true,
+      body: `Mobile-first isn't a style preference — it's a **constraint ordering**: design for the smallest viewport, then *add* complexity as space allows.
+
+\`\`\`
+/* base = mobile: single column, full width */
+.layout { display: grid; gap: 16px; }
+
+@media (min-width: 768px) {
+  .layout { grid-template-columns: 240px 1fr; }
+}
+\`\`\`
+
+**Why min-width beats max-width:** with min-width, base styles are the simple case and queries layer *on top*; with max-width you end up un-doing desktop styles for phones — fighting your own CSS.
+
+**Fluid before breakpoints.** Breakpoints are the spice, not the meal:
+
+\`\`\`
+.hero-title { font-size: clamp(2rem, 5vw + 1rem, 4.5rem); }
+.gallery { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+img, video { max-width: 100%; height: auto; }
+\`\`\`
+
+\`clamp(min, preferred, max)\` gives fluid typography with safety rails; \`auto-fill + minmax\` builds responsive grids with zero media queries.
+
+**Real-device checklist:**
+- Touch targets ≥ 44×44px — fingers, not cursors
+- Viewport meta tag present: \`<meta name="viewport" content="width=device-width, initial-scale=1">\`
+- Test with DevTools device emulation AND a real phone — emulation hides scroll/perf issues
+- Respect \`prefers-reduced-motion\` for animations
+- Don't disable zoom — accessibility failure
+
+**Testing ritual:** resize continuously from 320px up; every breakage you find is a missing fluid rule or a breakpoint you actually need.`,
+      quiz: [
+        {
+          q: "The core mobile-first technique is…",
+          options: [
+            "max-width queries shrinking desktop CSS",
+            "Base styles for small screens, min-width queries adding complexity",
+            "Separate mobile site on m.example.com",
+            "Zooming out the desktop design",
+          ],
+          answer: 1,
+          explanation: "Enhance upward instead of repairing downward.",
+        },
+        {
+          q: "clamp(2rem, 5vw + 1rem, 4.5rem) does what?",
+          options: [
+            "Picks 5vw always",
+            "Fluid size between 2rem and 4.5rem following viewport width",
+            "Rounds to the nearest rem",
+            "Sets minimum only",
+          ],
+          answer: 1,
+          explanation: "Preferred value scales with vw, clamped to hard min/max rails.",
+        },
+        {
+          q: "Minimum comfortable touch target size?",
+          options: ["16×16px", "24×24px", "44×44px", "100×100px"],
+          answer: 2,
+          explanation: "Apple/Android guidelines converge around 44px for finger-sized targets.",
+        },
+        {
+          q: "img, video { max-width: 100%; height: auto } prevents…",
+          options: [
+            "Slow loading",
+            "Media overflowing its container on small screens",
+            "Blurry images",
+            "CORS errors",
+          ],
+          answer: 1,
+          explanation: "The classic responsive-media rule — never wider than the box, aspect preserved.",
+        },
+        {
+          q: "Why also test on a real phone?",
+          options: [
+            "DevTools emulation is perfect",
+            "Emulation can't show real touch, scroll physics, or device performance",
+            "Phones need special CSS files",
+            "You don't need to",
+          ],
+          answer: 1,
+          explanation: "Real devices surface touch latency, viewport quirks, and CPU limits emulation hides.",
+        },
+      ],
+    },
+    {
       id: "css-layout",
       title: "Flexbox, Grid & Responsive Strategy",
       minutes: 12,

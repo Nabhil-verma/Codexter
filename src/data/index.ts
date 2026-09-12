@@ -5,6 +5,7 @@ import { backendTrack } from "./track-backend";
 import { dsaTrack } from "./track-dsa";
 import { pythonTrack } from "./track-python";
 import { gitTrack } from "./track-git";
+import { testingTrack } from "./track-testing";
 
 export type { Track, Lesson } from "./types";
 export type { Check, QuizQuestion } from "./types";
@@ -16,6 +17,7 @@ export const tracks: Track[] = [
   dsaTrack,
   pythonTrack,
   gitTrack,
+  testingTrack,
 ];
 
 export function findTrack(trackId: string) {

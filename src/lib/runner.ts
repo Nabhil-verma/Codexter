@@ -35,48 +35,130 @@ export async function runUserCode(code: string, timeoutMs = 4000): Promise<RunRe
       throw new Error("Script took too long — possible infinite loop!");
     }
   };
-  const guarded = code.replace(
-    /\b(for|while)\s*\(/g,
-    (_m, kw: string) => "__tick__();" + kw + "("
-  );
+  // Inject a guard INSIDE every loop body so each iteration checks the
+  // deadline. Hand-rolled scanner: headers may contain ')' (destructuring
+  // like `for (const [a, b] of pairs)`) and bodies may be brace-less
+  // (`while (true) x = x + 1;`), which a plain regex gets wrong.
+  const guardedCode = addLoopGuards(code);
 
   const fakeConsole = { log: push, error: push, warn: push, info: push };
 
-  const sandboxFetch = makeMockFetch(push);
+  const sandboxFetch = makeMockFetch(push, pending);
 
-  const err = await (async () => {
-    try {
-      const fn = new Function(
-        "console",
-        "__tick__",
-        "fetch",
-        "setTimeout",
-        "setInterval",
-        "PromiseLib",
-        `"use strict";\n${guarded}`
-      );
-      const task = fn(
-        fakeConsole,
-        tick,
-        sandboxFetch,
-        trackedTimeout(pending),
-        undefined,
-        Promise
-      );
-      if (task && typeof (task as Promise<unknown>).then === "function") {
-        pending.push(task as Promise<unknown>);
+  // Async wrapper gives user code top-level `await` support (module-like).
+  let taskError: string | null = null;
+  try {
+    const fn = new Function(
+      "console",
+      "__tick__",
+      "fetch",
+      "setTimeout",
+      "setInterval",
+      "PromiseLib",
+      `"use strict"; return (async () => {\n${guardedCode}\n})().then((r) => {\n  if (r !== undefined) console.log("→ return value:", r);\n  return r;\n});`
+    );
+    const entry = fn(
+      fakeConsole,
+      tick,
+      sandboxFetch,
+      trackedTimeout(pending),
+      undefined,
+      Promise
+    ) as Promise<unknown>;
+    // Never push the entry itself into `pending` — the drain loop waits on
+    // leaf tasks (timers/latency); awaiting the entry directly deadlocks
+    // when the entry is suspended on a leaf registered after the loop checks.
+    entry.catch((e) => {
+      taskError = e instanceof Error ? e.message : String(e);
+    });
+
+    // Drain: keep pulling leaf tasks (timers/latency) until an idle window
+    // elapses with nothing pending.
+    let idle = 0;
+    const start = Date.now();
+    // Drain until a full idle window elapses: microtask chains spawned by
+    // settled leaf promises (e.g. `res.json()`, fire-and-forget `main()`)
+    // can't be observed as pending — they run between our polls. The idle
+    // break below is therefore the definitive end-of-execution signal.
+    while (Date.now() - start < timeoutMs + 2000) {
+      const batch = pending.splice(0);
+      if (batch.length) {
+        idle = 0;
+        await Promise.all(batch);
+      } else {
+        idle++;
+        // ~200ms of nothing observable = done. Nested macrotasks (fetch
+        // latency, timers) always re-register well within this window.
+        if (idle >= 40) break;
+        await new Promise((r) => realSetTimeout(r, 5));
       }
-      // Wait for the entry task + everything it spawned
-      while (pending.length) {
-        await Promise.all(pending.splice(0));
-      }
-      return null;
-    } catch (e) {
-      return e instanceof Error ? e.message : String(e);
     }
-  })();
+  } catch (e) {
+    return { logs, error: e instanceof Error ? e.message : String(e) };
+  }
 
-  return { logs, error: err };
+  return { logs, error: taskError };
+}
+
+/**
+ * Rewrites every `for`/`while` loop so its body begins with `__tick__();`.
+ * Handles balanced-paren headers and both braced and brace-less bodies.
+ */
+function addLoopGuards(code: string): string {
+  let out = "";
+  let i = 0;
+  const isBoundary = (ch: string | undefined) =>
+    ch === undefined || /[\s;{})]/.test(ch);
+  while (i < code.length) {
+    const m = /^(for|while)\s*\(/.exec(code.slice(i));
+    // Require a token boundary so we never touch `forEach(` or text in strings
+    if (!m || !isBoundary(code[i - 1])) {
+      out += code[i];
+      i += 1;
+      continue;
+    }
+    const kw = m[1];
+    let j = i + kw.length;
+    while (/\s/.test(code[j] ?? "")) j += 1;
+    if (code[j] !== "(") {
+      out += code[i];
+      i += 1;
+      continue;
+    }
+    // Copy the balanced-paren header
+    let depth = 0;
+    do {
+      if (code[j] === "(") depth += 1;
+      else if (code[j] === ")") depth -= 1;
+      j += 1;
+    } while (j < code.length && depth > 0);
+    const headerEnd = j;
+    let k = headerEnd;
+    while (/\s/.test(code[k] ?? "")) k += 1;
+    if (code[k] === "{") {
+      // Braced body: inject the tick right after the opening brace
+      out += code.slice(i, headerEnd) + " { __tick__();";
+      i = k + 1;
+    } else {
+      // Brace-less body: wrap the single statement in a block so the tick
+      // runs every iteration without changing the loop's semantics. The
+      // scan is paren-aware (for-headers contain ';') and re-guards any
+      // nested brace-less loop in the body.
+      let end = k;
+      let pdepth = 0;
+      while (end < code.length) {
+        const ch = code[end];
+        if (ch === "(") pdepth += 1;
+        else if (ch === ")") pdepth -= 1;
+        else if (ch === ";" && pdepth === 0) break;
+        end += 1;
+      }
+      const body = addLoopGuards(code.slice(k, end + 1));
+      out += code.slice(i, headerEnd) + " { __tick__(); " + body + " }";
+      i = end + 1;
+    }
+  }
+  return out;
 }
 
 function trackedTimeout(pending: Promise<unknown>[]) {
@@ -105,7 +187,16 @@ const serverState = { nextId: 4, users: [
   { id: 3, name: "Sam", role: "manager" },
 ] as MockUser[] };
 
-const latency = () => new Promise<void>((r) => realSetTimeout(r, 40 + Math.random() * 60));
+// Fetch latency registers into the caller's pending list so runUserCode
+// keeps draining until in-flight requests settle (fixes fire-and-forget main()).
+const latency = (pending: Promise<unknown>[]) =>
+  new Promise<void>((r) => {
+    const p = new Promise<void>((resolve) =>
+      realSetTimeout(resolve, 40 + Math.random() * 60)
+    );
+    pending.push(p);
+    p.then(() => r());
+  });
 
 function jsonRes(body: unknown, status = 200) {
   return {
@@ -117,9 +208,9 @@ function jsonRes(body: unknown, status = 200) {
   };
 }
 
-async function makeMockFetch(log: (...a: unknown[]) => void) {
+function makeMockFetch(log: (...a: unknown[]) => void, pending: Promise<unknown>[]) {
   return async (url: string, opts?: { method?: string; body?: string }) => {
-    await latency();
+    await latency(pending);
     const method = (opts?.method ?? "GET").toUpperCase();
     const path = url.replace(/^https?:\/\/[^/]+/, "");
     const users = serverState.users;
