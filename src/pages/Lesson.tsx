@@ -13,13 +13,14 @@ import {
   lessonKey,
   type QuizQuestion,
 } from "../data";
-import { loadProgress, useProgress } from "../lib/progress";
+import { useProgress, useProgressState } from "../lib/progress";
 
 export default function Lesson() {
   const { trackId, lessonId } = useParams();
   const track = findTrack(trackId ?? "");
   const lesson = findLesson(trackId ?? "", lessonId ?? "");
   const { record } = useProgress();
+  const progressState = useProgressState();
   const [exerciseDone, setExerciseDone] = useState(false);
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export default function Lesson() {
     if (score >= 1) record(key, 1);
   };
 
-  const completed = (loadProgress().completed[key] ?? 0) >= 1;
+  const completed = (progressState.completed[key] ?? 0) >= 1;
 
   return (
     <div className="min-h-screen">

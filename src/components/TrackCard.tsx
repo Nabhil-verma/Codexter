@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { tracks, type Track } from "../data";
-import { loadProgress, type Progress } from "../lib/progress";
+import { useProgressState, type Progress } from "../lib/progress";
 
 export function trackProgress(track: Track, progress: Progress) {
   const done = track.lessons.filter(
@@ -10,7 +10,7 @@ export function trackProgress(track: Track, progress: Progress) {
 }
 
 export default function TrackCard({ track }: { track: Track }) {
-  const progress = loadProgress();
+  const progress = useProgressState();
   const { done, total } = trackProgress(track, progress);
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
 

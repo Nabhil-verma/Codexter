@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import Nav from "../components/Nav";
 import TrackCard from "../components/TrackCard";
 import { tracks, totalLessonCount, findTrack } from "../data";
-import { loadProgress } from "../lib/progress";
+import { useProgressState } from "../lib/progress";
 
 const features = [
   {
@@ -29,7 +29,7 @@ const features = [
 
 function ContinueCard() {
   // Find the first lesson not yet completed, in curriculum order
-  const progress = loadProgress();
+  const progress = useProgressState();
   for (const track of tracks) {
     for (let i = 0; i < track.lessons.length; i++) {
       const lesson = track.lessons[i];

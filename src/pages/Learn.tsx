@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
 import Nav from "../components/Nav";
 import { tracks, lessonKey, totalLessonCount } from "../data";
-import { loadProgress } from "../lib/progress";
+import { resetLocalProgress, useProgressState } from "../lib/progress";
+import { useAccount } from "../AccountProvider";
 
 export default function Learn() {
-  const progress = loadProgress();
+  const progress = useProgressState();
+  const { user, resetEverything } = useAccount();
   const doneCount = tracks.reduce(
     (n, t) =>
       n +
@@ -32,8 +34,12 @@ export default function Learn() {
             <button
               onClick={() => {
                 if (confirm("Reset all progress? This can't be undone.")) {
-                  localStorage.removeItem("clr-progress-v1");
-                  location.reload();
+                  if (user) {
+                    // Signed in: wipe device + cloud copy; UI updates live.
+                    void resetEverything();
+                  } else {
+                    resetLocalProgress();
+                  }
                 }
               }}
               className="rounded-full border border-paper-300 px-4 py-1.5 font-mono text-xs text-ink-600 transition hover:border-gold-400 hover:text-gold-600"
