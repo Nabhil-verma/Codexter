@@ -107,14 +107,22 @@ export default function PredictOutput({ steps }: { steps: PredictStep[] }) {
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={() => runIt(i, step.code)}
-                disabled={busy[i]}
-                className="mt-4 font-mono text-xs text-gold-600 transition hover:text-gold-500 disabled:opacity-50"
-              >
-                {busy[i] ? "running…" : "▶ verify by running it"}
-              </button>
+              {step.lang && step.lang !== "js" ? (
+                <p className="mt-4 font-mono text-xs text-ink-600">
+                  {step.lang === "bash"
+                    ? "bash snippet — mental execution only (the sandbox runs JavaScript)"
+                    : step.lang + " snippet — mental execution only (the sandbox runs JavaScript)"}
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => runIt(i, step.code)}
+                  disabled={busy[i]}
+                  className="mt-4 font-mono text-xs text-gold-600 transition hover:text-gold-500 disabled:opacity-50"
+                >
+                  {busy[i] ? "running…" : "▶ verify by running it"}
+                </button>
+              )}
 
               {ranOut[i] && (
                 <pre className="mt-2 overflow-x-auto rounded-lg bg-ink-950 p-4 font-mono text-xs leading-relaxed text-paper-100">

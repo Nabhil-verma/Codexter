@@ -6,6 +6,9 @@ import { dsaTrack } from "./track-dsa";
 import { pythonTrack } from "./track-python";
 import { gitTrack } from "./track-git";
 import { testingTrack } from "./track-testing";
+import { devopsTrack } from "./track-devops";
+import { securityTrack } from "./track-security";
+import { architectureTrack } from "./track-architecture";
 
 export type { Track, Lesson } from "./types";
 export type { Check, QuizQuestion } from "./types";
@@ -18,6 +21,9 @@ export const tracks: Track[] = [
   pythonTrack,
   gitTrack,
   testingTrack,
+  devopsTrack,
+  securityTrack,
+  architectureTrack,
 ];
 
 export function findTrack(trackId: string) {

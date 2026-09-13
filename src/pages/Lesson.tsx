@@ -13,7 +13,8 @@ import {
   lessonKey,
   type QuizQuestion,
 } from "../data";
-import { useProgress, useProgressState } from "../lib/progress";
+import { useProgress, useProgressState, scoreFor } from "../lib/progress";
+import { todayKey } from "../lib/gamification";
 
 export default function Lesson() {
   const { trackId, lessonId } = useParams();
@@ -51,10 +52,10 @@ export default function Lesson() {
   const quiz: QuizQuestion[] = lesson.quiz;
 
   const handleScore = (score: number) => {
-    if (score >= 1) record(key, 1);
+    if (score >= 1) record(key, 1, todayKey());
   };
 
-  const completed = (progressState.completed[key] ?? 0) >= 1;
+  const completed = scoreFor(progressState, key) >= 1;
 
   return (
     <div className="min-h-screen">

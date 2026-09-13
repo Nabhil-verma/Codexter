@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import Nav from "../components/Nav";
 import TrackCard from "../components/TrackCard";
 import { tracks, totalLessonCount, findTrack } from "../data";
-import { useProgressState } from "../lib/progress";
+import { scoreFor, useProgressState } from "../lib/progress";
 
 const features = [
   {
@@ -33,7 +33,7 @@ function ContinueCard() {
   for (const track of tracks) {
     for (let i = 0; i < track.lessons.length; i++) {
       const lesson = track.lessons[i];
-      if ((progress.completed[track.id + "/" + lesson.id] ?? 0) < 1) {
+      if (scoreFor(progress, track.id + "/" + lesson.id) < 1) {
         const first = findTrack(tracks[0].id) === track && i === 0;
         return (
           <Link

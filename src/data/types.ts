@@ -18,6 +18,8 @@ export type PredictStep = {
   options: string[];
   answer: number;
   explanation: string;
+  /** Language of `code` — non-JS snippets are displayed but not executed. */
+  lang?: "js" | "bash" | "python" | "sql";
 };
 
 /** Objective for the guided Git terminal simulator. */

@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
 import { tracks, type Track } from "../data";
-import { useProgressState, type Progress } from "../lib/progress";
+import { scoreFor, useProgressState, type Progress } from "../lib/progress";
 
 export function trackProgress(track: Track, progress: Progress) {
   const done = track.lessons.filter(
-    (l) => (progress.completed[track.id + "/" + l.id] ?? 0) >= 1
+    (l) => scoreFor(progress, track.id + "/" + l.id) >= 1
   ).length;
   return { done, total: track.lessons.length };
 }

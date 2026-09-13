@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAccount } from "../AccountProvider";
 import AuthModal from "../AuthModal";
-import { useProgressState } from "../lib/progress";
+import { lessonIdOf, useProgressState } from "../lib/progress";
 import { totalLessonCount } from "../data";
 
 const syncLabel: Record<string, string> = {
@@ -37,7 +37,12 @@ export default function Nav() {
     return () => window.removeEventListener("mousedown", onDown);
   }, [menuOpen]);
 
-  const done = Object.keys(progress.completed).length;
+  // Distinct lessons ever completed (v2 keys are date-suffixed — dedupe).
+  const done = new Set(
+    Object.keys(progress.completed)
+      .filter((k) => (progress.completed[k] ?? 0) >= 1)
+      .map(lessonIdOf)
+  ).size;
 
   return (
     <header className="sticky top-0 z-40 border-b border-paper-200 bg-paper/85 backdrop-blur">

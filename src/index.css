@@ -58,4 +58,25 @@ body {
   .eyebrow {
     @apply font-mono text-xs uppercase tracking-[0.2em] text-gold-600;
   }
+  .certificate-sheet {
+    @apply bg-paper-50;
+  }
+}
+
+/* Certificates print cleanly — hide chrome, keep the sheet. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .certificate-sheet,
+  .certificate-sheet * {
+    visibility: visible;
+  }
+  .certificate-sheet {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+  }
 }

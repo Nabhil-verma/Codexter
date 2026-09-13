@@ -7,8 +7,23 @@ const allLessons = tracks.flatMap((t) =>
 );
 
 describe("curriculum integrity", () => {
-  it("has seven tracks", () => {
-    expect(tracks).toHaveLength(7);
+  it("has ten tracks", () => {
+    expect(tracks).toHaveLength(10);
+  });
+
+  it("covers all ten planned curriculum areas", () => {
+    expect(tracks.map((t) => t.id)).toEqual([
+      "web",
+      "react",
+      "backend",
+      "dsa",
+      "python",
+      "git",
+      "testing",
+      "devops",
+      "security",
+      "architecture",
+    ]);
   });
 
   it("has unique track ids", () => {
@@ -54,7 +69,20 @@ describe("curriculum integrity", () => {
 
   it("total count matches the sum of lessons", () => {
     expect(totalLessonCount).toBe(allLessons.length);
-    expect(totalLessonCount).toBeGreaterThanOrEqual(30);
+    expect(totalLessonCount).toBeGreaterThanOrEqual(50);
+  });
+
+  it("every track ends with a capstone-style build lesson", () => {
+    for (const t of tracks) {
+      const last = t.lessons[t.lessons.length - 1];
+      const isCapstone =
+        /capstone|build|project/i.test(last.title) || /capstone/i.test(last.id);
+      // Tracks without a formal capstone still end in a substantial applied lesson.
+      expect(
+        isCapstone || last.body.length > 500,
+        `track ${t.id} final lesson "${last.title}"`
+      ).toBe(true);
+    }
   });
 
   it("every predict challenge has a valid answer and runnable code", async () => {
@@ -71,9 +99,14 @@ describe("curriculum integrity", () => {
         expect(p.answer, `${track.id}/${lesson.id} predict ${i}`).toBeLessThan(p.options.length);
         expect(p.explanation.length, `${track.id}/${lesson.id} predict ${i}`).toBeGreaterThan(5);
       });
-      // predict snippets must execute cleanly so the "verify by running" button works
+      // JS predict snippets must execute cleanly so the "verify by running"
+      // button works; non-JS snippets (bash/python/sql) are display-only.
       for (const [i, p] of (lesson.predict ?? []).entries()) {
-        if (!/^\s*(#|def |print|\w+ =)/.test(p.code) || /console\.log/.test(p.code)) {
+        if (p.lang != null && p.lang !== "js") continue;
+        // Heuristic (pre-dates the lang tag): shell/python-style snippets
+        // aren't runnable in the JS sandbox — except tagged JS with console.log.
+        const jsish = !/^\s*(#|def |print|\w+ =)/.test(p.code) || /console\.log/.test(p.code);
+        if (jsish) {
           const r = await runUserCode(p.code);
           expect(
             r.error,

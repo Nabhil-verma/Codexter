@@ -55,6 +55,7 @@ Rule of thumb: list for order, tuple for fixed shapes, set for membership, dict 
       predict: [
         {
           prompt: "What does this Python print?",
+          lang: "python",
           code: `nums = [1, 2, 3, 4]
 result = [n * 2 for n in nums if n % 2 == 0]
 print(result)`,
@@ -65,6 +66,7 @@ print(result)`,
         },
         {
           prompt: "And this one?",
+          lang: "python",
           code: `def add_item(item, items=[]):
     items.append(item)
     return items
