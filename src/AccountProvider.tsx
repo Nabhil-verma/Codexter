@@ -210,7 +210,13 @@ function ConvexAccount({ children }: { children: ReactNode }) {
 
 export function AccountProvider({ children }: { children: ReactNode }) {
   const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
-  const client = useMemo(() => (convexUrl ? new ConvexReactClient(convexUrl) : null), [convexUrl]);
+  // A localhost URL baked in from a dev build can never work in production —
+  // treat it as unconfigured so the app falls back to local-only mode.
+  const usable =
+    convexUrl && !/^https?:\/\/(localhost|127\.0\.0\.1)/.test(convexUrl)
+      ? convexUrl
+      : undefined;
+  const client = useMemo(() => (usable ? new ConvexReactClient(usable) : null), [usable]);
 
   if (!client) {
     return <Ctx.Provider value={useLocalOnlyValue()}>{children}</Ctx.Provider>;
