@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAccount } from "../AccountProvider";
 import AuthModal from "../AuthModal";
+import AiSettingsModal from "./AiSettingsModal";
 import { lessonIdOf, useProgressState } from "../lib/progress";
 import { totalLessonCount } from "../data";
 
@@ -23,6 +24,7 @@ export default function Nav() {
   const progress = useProgressState();
   const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const { user, authReady, cloudReady, sync, signOutUser, resetEverything } = useAccount();
@@ -93,6 +95,16 @@ export default function Nav() {
             <span className="text-gold-600">{done}</span>/{totalLessonCount} done
           </span>
 
+          {/* AI settings gear */}
+          <button
+            type="button"
+            onClick={() => setAiOpen(true)}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-paper-200 text-ink-600 transition hover:border-gold-400 hover:text-gold-600"
+            aria-label="AI tutor settings"
+          >
+            {"\u2699\uFE0F"}
+          </button>
+
           {/* Account pill — hidden entirely when cloud auth isn't configured */}
           {authReady && cloudReady &&
             (user ? (
@@ -161,6 +173,7 @@ export default function Nav() {
         </nav>
       </div>
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
+      {aiOpen && <AiSettingsModal onClose={() => setAiOpen(false)} />}
     </header>
   );
 }

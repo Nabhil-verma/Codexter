@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import Nav from "../components/Nav";
 import Playground from "../components/Playground";
+import BugHunt, { BUG_HUNTS } from "../components/BugHunt";
+import LocalModeGuide from "../components/LocalModeGuide";
 
 const STORAGE_KEY = "clr-playground-code-v1";
 
@@ -157,6 +159,32 @@ export default function PlaygroundPage() {
         <p className="mt-6 text-center font-mono text-xs text-ink-600">
           Tip · Cmd/Ctrl+Enter runs · Tab indents · infinite loops can't freeze the tab
         </p>
+
+        {/* Run locally guide */}
+        <section className="mt-16">
+          <LocalModeGuide
+            title="Playground Snippets"
+            starterCode={code}
+            deps={[""]}
+          />
+        </section>
+
+        {/* Bug Hunt challenges */}
+        <section className="mt-16">
+          <p className="eyebrow text-center">Bug Hunts</p>
+          <h2 className="mt-3 text-center font-display text-3xl font-semibold tracking-tight text-ink-950">
+            Find the bugs, fix the code
+          </h2>
+          <p className="mx-auto mt-3 max-w-md text-center text-ink-600">
+            Each challenge has broken code. Read it, find the bug, then reveal hints
+            or the full solution.
+          </p>
+          <div className="mt-10 space-y-10">
+            {BUG_HUNTS.map((bh) => (
+              <BugHunt key={bh.id} challenge={bh} />
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   );

@@ -8,6 +8,7 @@ import GitSim from "../components/GitSim";
 import PredictOutput from "../components/PredictOutput";
 import Quiz from "../components/Quiz";
 import SolutionFeed from "../components/SolutionFeed";
+import SocraticTutor from "../components/SocraticTutor";
 import {
   findTrack,
   findLesson,
@@ -121,7 +122,20 @@ export default function Lesson() {
           </section>
         )}
 
-        {/* 2.5 Predict — mental execution practice */}
+        {/* 2.5 AI Tutor — guided help (optional, BYOK) */}
+        {lesson.starter && (
+          <section className="mt-14">
+            <h2 className="eyebrow mb-4">Ask the Tutor</h2>
+            <SocraticTutor
+              code={lesson.starter}
+              checkExpr={lesson.check?.expr}
+              checkHint={lesson.check?.hint}
+              topic={lesson.title}
+            />
+          </section>
+        )}
+
+        {/* 2.6 Predict — mental execution practice */}
         {lesson.predict && lesson.predict.length > 0 && (
           <PredictOutput steps={lesson.predict} />
         )}
