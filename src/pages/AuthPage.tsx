@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Nav from "../components/Nav";
 import { useAccount } from "../AccountProvider";
 
-type Mode = "signin" | "signup" | "reset";
+type Mode = "signin" | "signup";
 
 const inputCls =
   "w-full rounded-xl border border-paper-300 bg-paper-50 px-4 py-2.5 text-sm text-ink-950 outline-none transition placeholder:text-ink-400 focus:border-gold-400 focus:ring-2 focus:ring-gold-400/25";
@@ -32,7 +32,7 @@ function sanitizeReturnTo(raw: string | null): string {
 }
 
 export default function AuthPage() {
-  const { user, authReady, cloudReady, signIn, signUp, resetPassword } = useAccount();
+  const { user, authReady, cloudReady, signIn, signUp } = useAccount();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
@@ -42,7 +42,6 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const firstInput = useRef<HTMLInputElement>(null);
 
@@ -59,7 +58,6 @@ export default function AuthPage() {
   function switchMode(next: Mode) {
     setMode(next);
     setError(null);
-    setNotice(null);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -68,10 +66,8 @@ export default function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signin") await signIn(email.trim(), password);
-      else if (mode === "signup") await signUp(name.trim(), email.trim(), password);
-      else await resetPassword(email.trim());
-      if (mode !== "reset") navigate(returnTo, { replace: true });
-      else setNotice("Reset email sent — check your inbox (and the spam folder).");
+      else await signUp(name.trim(), email.trim(), password);
+      navigate(returnTo, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -79,14 +75,11 @@ export default function AuthPage() {
     }
   }
 
-  const title =
-    mode === "signin" ? "Welcome back" : mode === "signup" ? "Create your account" : "Reset password";
+  const title = mode === "signin" ? "Welcome back" : "Create your account";
   const sub =
     mode === "signin"
       ? "Sign in to sync your progress across devices."
-      : mode === "signup"
-        ? "Free forever. Your quiz scores and completed lessons follow you anywhere."
-        : "Enter your email and we'll send you a reset link.";
+      : "Free forever. Your quiz scores and completed lessons follow you anywhere.";
 
   return (
     <div className="min-h-screen">
@@ -122,7 +115,7 @@ export default function AuthPage() {
             </p>
           </section>
 
-          {/* Form card / unconfigured notice */}
+          {/* Form card */}
           <section className="order-1 lg:order-2">
             {!cloudReady ? (
               <div className="card p-8 sm:p-10">
@@ -131,25 +124,12 @@ export default function AuthPage() {
                   Sign-in is switched off right now
                 </h2>
                 <p className="mt-3 leading-relaxed text-ink-600">
-                  This deployment is missing its Firebase keys, so accounts are
-                  disabled. <strong className="text-ink-950">Nothing is lost</strong> —
-                  your progress still saves automatically in this browser, and
-                  every lesson, playground, and certificate works exactly the same.
+                  This deployment isn't connected to its sync backend, so cloud
+                  accounts are disabled.{" "}
+                  <strong className="text-ink-950">Nothing is lost</strong> — your
+                  progress still saves automatically in this browser, and every
+                  lesson, playground, and certificate works exactly the same.
                 </p>
-                <div className="mt-6 rounded-xl border border-gold-400/50 bg-gold-400/10 p-4 text-sm leading-relaxed text-ink-800">
-                  <p className="font-semibold">To turn on email sign-in:</p>
-                  <ol className="mt-2 list-decimal space-y-1 pl-4">
-                    <li>
-                      Create a free Firebase project and enable
-                      Email/Password sign-in + Realtime Database.
-                    </li>
-                    <li>
-                      Add the <code className="font-mono text-gold-700">VITE_FIREBASE_*</code>{" "}
-                      keys in Settings → Environment &amp; API keys.
-                    </li>
-                    <li>Redeploy — the sign-in form replaces this notice.</li>
-                  </ol>
-                </div>
                 <Link to="/learn" className="btn-primary mt-8">
                   Keep learning without an account →
                 </Link>
@@ -166,74 +146,46 @@ export default function AuthPage() {
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-ink-600">{sub}</p>
 
-                {notice ? (
-                  <div className="mt-6 rounded-xl border border-gold-400/50 bg-gold-400/10 px-4 py-3 text-sm leading-relaxed text-ink-800">
-                    {notice}
-                  </div>
-                ) : (
-                  <form onSubmit={handleSubmit} className="mt-6 space-y-3">
-                    {mode === "signup" && (
-                      <input
-                        ref={firstInput}
-                        className={inputCls}
-                        placeholder="Your name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        autoComplete="name"
-                      />
-                    )}
-                    {mode === "signin" && (
-                      <input
-                        ref={firstInput}
-                        className={inputCls}
-                        type="email"
-                        required
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        autoComplete="email"
-                      />
-                    )}
-                    {mode === "reset" && (
-                      <input
-                        ref={firstInput}
-                        className={inputCls}
-                        type="email"
-                        required
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        autoComplete="email"
-                      />
-                    )}
-                    {mode !== "reset" && (
-                      <input
-                        className={inputCls}
-                        type="password"
-                        required
-                        minLength={6}
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                      />
-                    )}
-                    {error && <p className="text-sm text-red-600">{error}</p>}
-                    <button
-                      type="submit"
-                      disabled={busy}
-                      className="btn-gold w-full !justify-center disabled:opacity-60"
-                    >
-                      {busy
-                        ? "One moment…"
-                        : mode === "signin"
-                          ? "Sign in"
-                          : mode === "signup"
-                            ? "Create account"
-                            : "Send reset link"}
-                    </button>
-                  </form>
-                )}
+                <form onSubmit={handleSubmit} className="mt-6 space-y-3">
+                  {mode === "signup" && (
+                    <input
+                      ref={firstInput}
+                      className={inputCls}
+                      placeholder="Your name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      autoComplete="name"
+                    />
+                  )}
+                  <input
+                    ref={mode === "signin" ? firstInput : undefined}
+                    className={inputCls}
+                    type="email"
+                    required
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                  />
+                  <input
+                    className={inputCls}
+                    type="password"
+                    required
+                    minLength={8}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  />
+                  {error && <p className="text-sm text-red-600">{error}</p>}
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="btn-gold w-full !justify-center disabled:opacity-60"
+                  >
+                    {busy ? "One moment…" : mode === "signin" ? "Sign in" : "Create account"}
+                  </button>
+                </form>
 
                 <div className="mt-5 space-y-1.5 text-center text-sm">
                   {mode !== "signup" && (
@@ -256,17 +208,6 @@ export default function AuthPage() {
                         onClick={() => switchMode("signin")}
                       >
                         ← Back to sign in
-                      </button>
-                    </p>
-                  )}
-                  {mode === "signin" && (
-                    <p className="text-ink-600">
-                      <button
-                        type="button"
-                        className="hover:underline"
-                        onClick={() => switchMode("reset")}
-                      >
-                        Forgot your password?
                       </button>
                     </p>
                   )}

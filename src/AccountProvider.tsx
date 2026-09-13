@@ -8,19 +8,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { ConvexProvider, ConvexReactClient, useMutation, useQuery } from "convex/react"; // eslint-disable-line -- ConvexReactClient used below
+import { ConvexAuthProvider, useAuthActions } from "@convex-dev/auth/react";
+import { api } from "./convex/_generated/api";
 import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
-  type User,
-} from "firebase/auth";
-import { get, ref, remove, set } from "firebase/database";
-import { firebaseReady, getFirebase } from "./lib/firebase";
-import {
-  EMPTY_PROGRESS,
   loadProgress,
   mergeProgress,
   resetLocalProgress,
@@ -31,16 +22,18 @@ import {
 
 export type SyncState = "idle" | "syncing" | "synced" | "error";
 
+/** Minimal user shape the UI needs — no vendor types leak into components. */
+export type AccountUser = { displayName: string; email: string };
+
 type AccountCtx = {
-  user: User | null;
-  /** False until the initial auth state is known (or Firebase isn't set up). */
+  user: AccountUser | null;
+  /** False until the initial auth state is known (or cloud isn't set up). */
   authReady: boolean;
-  /** False when the VITE_FIREBASE_* env keys are missing — auth UI hides itself. */
+  /** False when no Convex URL is configured — /auth explains it. */
   cloudReady: boolean;
   sync: SyncState;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
   signOutUser: () => Promise<void>;
   /** Wipe local progress AND the signed-in account's cloud progress. */
   resetEverything: () => Promise<void>;
@@ -49,68 +42,90 @@ type AccountCtx = {
 const Ctx = createContext<AccountCtx | null>(null);
 
 function friendlyError(err: unknown): string {
-  const code = (err as { code?: string })?.code ?? "";
-  switch (code) {
-    case "auth/invalid-email":
-      return "That email address doesn't look right.";
-    case "auth/user-not-found":
-      return "No account with that email yet — create one below.";
-    case "auth/wrong-password":
-      return "Wrong password — try again or reset it.";
-    case "auth/invalid-credential":
-      return "Wrong email or password.";
-    case "auth/email-already-in-use":
-      return "That email already has an account — sign in instead.";
-    case "auth/weak-password":
-      return "Password too weak — use at least 6 characters.";
-    case "auth/too-many-requests":
-      return "Too many attempts — wait a minute and retry.";
-    case "auth/network-request-failed":
-      return "Network error — check your connection.";
-    case "auth/operation-not-allowed":
-      return "Email sign-in isn't enabled for this Firebase project yet.";
-    default:
-      return err instanceof Error ? err.message : "Something went wrong — try again.";
-  }
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  if (/invalid/i.test(msg) && /credential|password|email/i.test(msg))
+    return "Wrong email or password.";
+  if (/already exists|already registered/i.test(msg))
+    return "That email already has an account — sign in instead.";
+  if (/weak/i.test(msg)) return "Password too weak — use at least 8 characters.";
+  if (/rate limit|too many/i.test(msg))
+    return "Too many attempts — wait a minute and retry.";
+  if (/fetch|network|Failed to fetch|WebSocket/i.test(msg))
+    return "Can't reach the sync server right now — try again shortly.";
+  return msg || "Something went wrong — try again.";
 }
 
-export function AccountProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [authReady, setAuthReady] = useState(!firebaseReady);
-  const [sync, setSync] = useState<SyncState>("idle");
-  const pushTimer = useRef<number | null>(null);
-  const lastPushed = useRef<string>("");
+/* ------------------------------------------------------------------ */
+/* Local-only mode (no VITE_CONVEX_URL on this deployment)              */
+/* ------------------------------------------------------------------ */
 
-  /* Auth listener. On sign-in: pull cloud progress, merge with local, push the union. */
+const NOT_CONFIGURED =
+  "Sign-in isn't configured on this deployment — progress saves in this browser.";
+
+function useLocalOnlyValue(): AccountCtx {
+  return useMemo(
+    () => ({
+      user: null,
+      authReady: true,
+      cloudReady: false,
+      sync: "idle" as SyncState,
+      signIn: async () => {
+        throw new Error(NOT_CONFIGURED);
+      },
+      signUp: async () => {
+        throw new Error(NOT_CONFIGURED);
+      },
+      signOutUser: async () => {},
+      resetEverything: async () => resetLocalProgress(),
+    }),
+    []
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Cloud mode (Convex Auth)                                            */
+/* ------------------------------------------------------------------ */
+
+function ConvexAccount({ children }: { children: ReactNode }) {
+  const act = useAuthActions();
+  const me = useQuery(api.users.me); // undefined=loading · null=signed out
+  const cloud = useQuery(api.progress.get);
+  const saveRow = useMutation(api.progress.save);
+  const wipeRow = useMutation(api.progress.wipe);
+
+  const [timedOut, setTimedOut] = useState(false);
+  const [sync, setSync] = useState<SyncState>("idle");
+  const lastPulled = useRef("");
+  const lastPushed = useRef("");
+  const pushTimer = useRef<number | null>(null);
+
+  const signedIn = me != null;
+  const authReady = cloud !== undefined || timedOut;
+
+  // If the backend is unreachable, don't hide the sign-in button forever.
   useEffect(() => {
-    const fb = getFirebase();
-    if (!fb) return;
-    return onAuthStateChanged(fb.auth, (u) => {
-      setUser(u);
-      setAuthReady(true);
-      lastPushed.current = "";
-      if (!u) {
-        setSync("idle");
-        return;
-      }
-      setSync("syncing");
-      get(ref(fb.db, `users/${u.uid}/progress`))
-        .then((snap) => {
-          const cloud: Progress = (snap.val() as Progress | null) ?? EMPTY_PROGRESS;
-          const merged = mergeProgress(loadProgress(), cloud);
-          saveProgress(merged); // notifies every subscriber
-          lastPushed.current = JSON.stringify(merged.completed);
-          return set(ref(fb.db, `users/${u.uid}/progress`), merged.completed);
-        })
-        .then(() => setSync("synced"))
-        .catch(() => setSync("error"));
-    });
+    const t = window.setTimeout(() => setTimedOut(true), 4000);
+    return () => window.clearTimeout(t);
   }, []);
 
-  /* Local progress changes while signed in → debounce-push to the cloud. */
+  /* Pull: merge cloud progress into local whenever the cloud row changes. */
   useEffect(() => {
-    const fb = getFirebase();
-    if (!user || !fb) return;
+    if (!cloud) return;
+    const serial = JSON.stringify(cloud);
+    if (serial === lastPulled.current) return;
+    lastPulled.current = serial;
+    const local = loadProgress().completed;
+    const merged = mergeProgress({ completed: local } as Progress, {
+      completed: cloud as Progress["completed"],
+    } as Progress);
+    const mergedSerial = JSON.stringify(merged.completed);
+    if (mergedSerial !== JSON.stringify(local)) saveProgress(merged);
+    lastPushed.current = mergedSerial; // the union is already on the server
+  }, [cloud]);
+
+  /* Push: local progress changes while signed in → debounce-save to cloud. */
+  useEffect(() => {
+    if (!signedIn) return;
     const unsub = subscribeProgress(() => {
       const serial = JSON.stringify(loadProgress().completed);
       if (serial === lastPushed.current) return;
@@ -118,7 +133,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       setSync("syncing");
       if (pushTimer.current) window.clearTimeout(pushTimer.current);
       pushTimer.current = window.setTimeout(() => {
-        set(ref(fb.db, `users/${user.uid}/progress`), loadProgress().completed)
+        saveRow({ data: loadProgress().completed })
           .then(() => setSync("synced"))
           .catch(() => setSync("error"));
       }, 600);
@@ -127,75 +142,86 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       unsub();
       if (pushTimer.current) window.clearTimeout(pushTimer.current);
     };
-  }, [user]);
+  }, [signedIn, saveRow]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    const fb = getFirebase();
-    if (!fb) throw new Error("Sign-in isn't configured yet — missing VITE_FIREBASE_* keys.");
-    try {
-      await signInWithEmailAndPassword(fb.auth, email, password);
-    } catch (err) {
-      throw new Error(friendlyError(err));
-    }
-  }, []);
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      try {
+        await act.signIn("password", { email, password, flow: "signIn" });
+      } catch (err) {
+        throw new Error(friendlyError(err));
+      }
+    },
+    [act]
+  );
 
-  const signUp = useCallback(async (name: string, email: string, password: string) => {
-    const fb = getFirebase();
-    if (!fb) throw new Error("Sign-in isn't configured yet — missing VITE_FIREBASE_* keys.");
-    try {
-      const cred = await createUserWithEmailAndPassword(fb.auth, email, password);
-      if (name) await updateProfile(cred.user, { displayName: name });
-    } catch (err) {
-      throw new Error(friendlyError(err));
-    }
-  }, []);
-
-  const resetPassword = useCallback(async (email: string) => {
-    const fb = getFirebase();
-    if (!fb) throw new Error("Sign-in isn't configured yet — missing VITE_FIREBASE_* keys.");
-    try {
-      await sendPasswordResetEmail(fb.auth, email);
-    } catch (err) {
-      throw new Error(friendlyError(err));
-    }
-  }, []);
+  const signUp = useCallback(
+    async (name: string, email: string, password: string) => {
+      try {
+        await act.signIn("password", { name, email, password, flow: "signUp" });
+      } catch (err) {
+        throw new Error(friendlyError(err));
+      }
+    },
+    [act]
+  );
 
   const signOutUser = useCallback(async () => {
-    const fb = getFirebase();
-    if (fb) await signOut(fb.auth);
-  }, []);
+    await act.signOut();
+    lastPulled.current = "";
+    lastPushed.current = "";
+    setSync("idle");
+  }, [act]);
 
   const resetEverything = useCallback(async () => {
     resetLocalProgress();
     lastPushed.current = "";
-    const fb = getFirebase();
-    if (fb && user) {
+    if (signedIn) {
       try {
-        await remove(ref(fb.db, `users/${user.uid}/progress`));
+        await wipeRow({});
       } catch {
         setSync("error");
         return;
       }
+      setSync("synced");
     }
-    setSync(user ? "synced" : "idle");
-  }, [user]);
+  }, [signedIn, wipeRow]);
 
   const value = useMemo<AccountCtx>(
     () => ({
-      user,
+      user: me ? { displayName: me.name, email: me.email } : null,
       authReady,
-      cloudReady: firebaseReady,
+      cloudReady: true,
       sync,
       signIn,
       signUp,
-      resetPassword,
       signOutUser,
       resetEverything,
     }),
-    [user, authReady, sync, signIn, signUp, resetPassword, signOutUser, resetEverything]
+    [me, authReady, sync, signIn, signUp, signOutUser, resetEverything]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/* ------------------------------------------------------------------ */
+/* Provider shell — picks cloud or local-only mode from the env        */
+/* ------------------------------------------------------------------ */
+
+export function AccountProvider({ children }: { children: ReactNode }) {
+  const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
+  const client = useMemo(() => (convexUrl ? new ConvexReactClient(convexUrl) : null), [convexUrl]);
+
+  if (!client) {
+    return <Ctx.Provider value={useLocalOnlyValue()}>{children}</Ctx.Provider>;
+  }
+  return (
+    <ConvexProvider client={client}>
+      <ConvexAuthProvider client={client}>
+        <ConvexAccount>{children}</ConvexAccount>
+      </ConvexAuthProvider>
+    </ConvexProvider>
+  );
 }
 
 export function useAccount(): AccountCtx {

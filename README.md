@@ -14,13 +14,13 @@ you write and run real code from minute one, in the browser, with zero signup.
 - **Plain-English error translator** — runtime errors get beginner-friendly explanations above the console
 - **Gamification** — XP, levels, daily streaks, 8 badges, and a GitHub-style activity heatmap on your public portfolio
 - **Printable certificates** — finish every lesson in a track to unlock a gold-sealed certificate
-- **Progress that follows you** — saved locally by default; optional Firebase email sign-in syncs it across devices
+- **Progress that follows you** — saved locally by default; optional Convex Auth email sign-in syncs it across devices
 - **AI Socratic tutor (BYOK)** — bring your own Gemini or Claude key; it asks guiding questions instead of giving answers
 - **PWA** — installable, with offline caching of lessons
 
 ## Tech stack
 
-Vite · React 18 · TypeScript · Tailwind CSS · React Router · Firebase (optional, for cloud sync) · Vitest
+Vite · React 18 · TypeScript · Tailwind CSS · React Router · Convex + Convex Auth (accounts & sync) · Vitest
 
 ## Getting started
 
@@ -32,25 +32,21 @@ npm run typecheck # tsc -b --noEmit
 npm run build     # production build → dist/
 ```
 
-## Optional: email sign-in (cloud sync)
+## Email sign-in (cloud sync)
 
-The app works fully without any backend — progress lives in `localStorage`.
-To enable email/password accounts and cross-device sync, create a free
-[Firebase](https://console.firebase.google.com) project, enable **Email/Password
-sign-in** and **Realtime Database**, then set these env vars:
+The app works fully without a backend — progress lives in `localStorage`.
+Accounts are built on **Convex Auth** (email/password, zero API keys in the
+frontend):
 
-```
-VITE_FIREBASE_API_KEY
-VITE_FIREBASE_AUTH_DOMAIN
-VITE_FIREBASE_DATABASE_URL
-VITE_FIREBASE_PROJECT_ID
-VITE_FIREBASE_STORAGE_BUCKET
-VITE_FIREBASE_MESSAGING_SENDER_ID
-VITE_FIREBASE_APP_ID
-```
+- `src/convex/` — schema (auth tables + `progress`), auth config, HTTP routes,
+  and `progress`/`users` functions. Functions live in `src/convex` via
+  `convex.json`.
+- On sign-in the cloud copy is merged with local (best score per key wins);
+  local changes debounce-push to the cloud while signed in.
 
-Without them, the app automatically falls back to local-only mode and the
-sign-in page explains the situation instead of showing a broken form.
+To point the app at a Convex deployment, set `VITE_CONVEX_URL`. Without it,
+the app runs in local-only mode and the sign-in page explains that instead of
+showing a broken form.
 
 ## License
 
