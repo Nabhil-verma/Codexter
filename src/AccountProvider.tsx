@@ -208,8 +208,16 @@ function ConvexAccount({ children }: { children: ReactNode }) {
 /* Provider shell — picks cloud or local-only mode from the env        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * This project's Convex deployment. Deploy URLs are public client endpoints
+ * (security comes from Convex Auth, not URL secrecy), so a committed fallback
+ * is safe; VITE_CONVEX_URL overrides it for other environments.
+ */
+const DEFAULT_CONVEX_URL = "https://accomplished-hyena-726.convex.cloud";
+
 export function AccountProvider({ children }: { children: ReactNode }) {
-  const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
+  const convexUrl =
+    (import.meta.env.VITE_CONVEX_URL as string | undefined) ?? DEFAULT_CONVEX_URL;
   // A localhost URL baked in from a dev build can never work in production —
   // treat it as unconfigured so the app falls back to local-only mode.
   const usable =
