@@ -5,6 +5,7 @@ import Lesson from "./pages/Lesson";
 import PlaygroundPage from "./pages/PlaygroundPage";
 import Certificate from "./pages/Certificate";
 import Portfolio from "./pages/Portfolio";
+import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/playground" element={<PlaygroundPage />} />
         <Route path="/certificate/:trackId" element={<Certificate />} />
         <Route path="/portfolio" element={<Portfolio />} />
+        <Route path="/auth" element={<AuthPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </HashRouter>

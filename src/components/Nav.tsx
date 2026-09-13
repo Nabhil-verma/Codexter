@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAccount } from "../AccountProvider";
-import AuthModal from "../AuthModal";
 import AiSettingsModal from "./AiSettingsModal";
 import { lessonIdOf, useProgressState } from "../lib/progress";
 import { totalLessonCount } from "../data";
@@ -22,12 +21,11 @@ const syncDot: Record<string, string> = {
 
 export default function Nav() {
   const progress = useProgressState();
-  const [authOpen, setAuthOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const { user, authReady, cloudReady, sync, signOutUser, resetEverything } = useAccount();
+  const { user, authReady, sync, signOutUser, resetEverything } = useAccount();
 
   // Close the account menu on outside click.
   useEffect(() => {
@@ -105,8 +103,9 @@ export default function Nav() {
             {"\u2699\uFE0F"}
           </button>
 
-          {/* Account pill — hidden entirely when cloud auth isn't configured */}
-          {authReady && cloudReady &&
+          {/* Account pill — always show sign-in; /auth explains gracefully
+              when cloud keys aren't configured on this deployment. */}
+          {authReady &&
             (user ? (
               <div ref={menuRef} className="relative">
                 <button
@@ -162,17 +161,15 @@ export default function Nav() {
                 )}
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => setAuthOpen(true)}
+              <Link
+                to={`/auth?returnTo=${encodeURIComponent(location.pathname + location.search)}`}
                 className="rounded-full bg-ink-950 px-4 py-1.5 font-medium text-paper-50 transition hover:shadow-glow"
               >
                 Sign in
-              </button>
+              </Link>
             ))}
         </nav>
       </div>
-      {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
       {aiOpen && <AiSettingsModal onClose={() => setAiOpen(false)} />}
     </header>
   );
