@@ -1,7 +1,18 @@
 export type Check = {
   /** JS expression evaluated against the user's `output`; must return truthy to pass */
   expr: string;
+  /** Kept as a fallback when a lesson has no tiered `hints` */
   hint: string;
+  /** Optional 3-tier hint ladder: concept → syntax → partial code */
+  hints?: Hint[];
+};
+
+/** One rung of the tiered hint ladder. */
+export type Hint = {
+  /** 1 = conceptual nudge, 2 = syntax reminder, 3 = partial code */
+  tier: 1 | 2 | 3;
+  /** Text of the hint (tier 3 may contain short code) */
+  text: string;
 };
 
 export type QuizQuestion = {

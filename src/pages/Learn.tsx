@@ -13,6 +13,8 @@ import {
   totalXp,
 } from "../lib/gamification";
 import { useAccount } from "../AccountProvider";
+import SkillTree from "../components/SkillTree";
+import MicroPractice from "../components/MicroPractice";
 
 export default function Learn() {
   const progress = useProgressState();
@@ -141,6 +143,20 @@ export default function Learn() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Visual Skill Tree */}
+        <div className="mt-14">
+          <h2 className="eyebrow mb-4">skill tree</h2>
+          <div className="rounded-2xl border border-ink-200 bg-paper-50 p-6">
+            <SkillTree />
+          </div>
+        </div>
+
+        {/* Mobile Micro-Practice */}
+        <div className="mt-14">
+          <h2 className="eyebrow mb-4">quick practice</h2>
+          <MicroPractice />
         </div>
 
         <div className="mt-14 space-y-12">

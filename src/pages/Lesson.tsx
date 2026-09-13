@@ -7,6 +7,7 @@ import CssSandbox from "../components/CssSandbox";
 import GitSim from "../components/GitSim";
 import PredictOutput from "../components/PredictOutput";
 import Quiz from "../components/Quiz";
+import SolutionFeed from "../components/SolutionFeed";
 import {
   findTrack,
   findLesson,
@@ -132,6 +133,14 @@ export default function Lesson() {
           </h2>
           <Quiz questions={quiz} onScore={handleScore} />
         </section>
+
+        {/* 4. Community solutions (locked until exercise pass) */}
+        {lesson.starter && (
+          <section className="mt-14">
+            <h2 className="eyebrow mb-4">Ⅳ · Solutions</h2>
+            <SolutionFeed lessonKey={key} passed={exerciseDone || completed} />
+          </section>
+        )}
 
         {/* Prev / next */}
         <nav className="mt-16 flex items-center justify-between gap-3 border-t border-paper-200 pt-8">

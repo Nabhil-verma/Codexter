@@ -1,6 +1,9 @@
 import { useRef, useState } from "react";
 import { runUserCode, evaluateCheck, type RunResult } from "../lib/runner";
 import type { Check } from "../data/types";
+import HintLadder from "./HintLadder";
+import ErrorNote from "./ErrorNote";
+import TraceVisualizer from "./TraceVisualizer";
 
 type Props = {
   starter: string;
@@ -15,6 +18,8 @@ export default function Playground({ starter, check, onPass, onCodeChange }: Pro
   const [result, setResult] = useState<RunResult | null>(null);
   const [running, setRunning] = useState(false);
   const [passed, setPassed] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [showTrace, setShowTrace] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   const update = (next: string) => {
@@ -29,6 +34,7 @@ export default function Playground({ starter, check, onPass, onCodeChange }: Pro
     if (check) {
       const ok = !r.error && evaluateCheck(check.expr, r.logs.join("\n"));
       setPassed(ok);
+      setAttempts((a) => a + 1);
       if (ok) onPass?.();
     }
     setRunning(false);
@@ -39,6 +45,7 @@ export default function Playground({ starter, check, onPass, onCodeChange }: Pro
     onCodeChange?.(starter);
     setResult(null);
     setPassed(false);
+    setAttempts(0);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -59,6 +66,9 @@ export default function Playground({ starter, check, onPass, onCodeChange }: Pro
       requestAnimationFrame(() => ta.setSelectionRange(s + 2, s + 2));
     }
   };
+
+  // Hints appear after two failed runs — struggle a little first.
+  const showHints = !passed && attempts >= 2;
 
   return (
     <div className="space-y-4">
@@ -105,6 +115,7 @@ export default function Playground({ starter, check, onPass, onCodeChange }: Pro
         </div>
         <div className="max-h-72 overflow-auto p-5 font-mono text-[13px] leading-relaxed">
           {!result && <p className="text-ink-600">// press Run to see output</p>}
+          {result?.error && <ErrorNote raw={result.error} />}
           {result?.logs.map((line, i) => (
             <div key={i} className="whitespace-pre-wrap text-paper-300">
               <span className="mr-2 select-none text-gold-500">›</span>
@@ -143,6 +154,29 @@ export default function Playground({ starter, check, onPass, onCodeChange }: Pro
           )}
         </div>
       )}
+
+      {/* Visual execution toggle */}
+      <button
+        type="button"
+        onClick={() => setShowTrace((v) => !v)}
+        className="w-full rounded-xl border border-dashed border-ink-200 px-4 py-2 font-mono text-xs text-ink-500 transition hover:border-gold-400 hover:text-gold-600"
+      >
+        {showTrace ? "▾ hide" : "▸ show"} visual execution trace
+      </button>
+
+      {showTrace && <TraceVisualizer code={code} />}
+
+      {check?.hints?.length ? (
+        showHints ? (
+          <HintLadder hints={check.hints} />
+        ) : (
+          !passed && (
+            <p className="text-center font-mono text-xs text-ink-600">
+              stuck? tiered hints unlock after two runs — try something first
+            </p>
+          )
+        )
+      ) : null}
     </div>
   );
 }

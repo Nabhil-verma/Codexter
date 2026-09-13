@@ -78,6 +78,17 @@ export default function Nav() {
           >
             Playground
           </Link>
+          <Link
+            to="/portfolio"
+            className={
+              "hidden rounded-full px-4 py-1.5 font-medium transition sm:inline-block " +
+              (location.pathname.startsWith("/portfolio")
+                ? "bg-ink-950 text-paper-50"
+                : "text-ink-700 hover:bg-paper-100")
+            }
+          >
+            Profile
+          </Link>
           <span className="hidden items-center gap-1.5 rounded-full border border-paper-200 px-3 py-1.5 font-mono text-xs text-ink-600 sm:flex">
             <span className="text-gold-600">{done}</span>/{totalLessonCount} done
           </span>

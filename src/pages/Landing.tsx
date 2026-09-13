@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import Nav from "../components/Nav";
 import TrackCard from "../components/TrackCard";
+import QuickSandbox from "../components/QuickSandbox";
 import { tracks, totalLessonCount, findTrack } from "../data";
 import { scoreFor, useProgressState } from "../lib/progress";
 
@@ -146,6 +147,20 @@ export default function Landing() {
           </div>
 
           <ContinueCard />
+        </div>
+      </section>
+
+      {/* Zero-friction try-it sandbox */}
+      <section className="mx-auto max-w-6xl px-4 py-12">
+        <p className="eyebrow text-center">try it right now</p>
+        <h2 className="mt-3 text-center font-display text-3xl font-semibold tracking-tight text-ink-950">
+          No signup. Just run code.
+        </h2>
+        <p className="mx-auto mt-3 max-w-md text-center text-ink-600">
+          Edit the code below and press Run. This is exactly what every lesson feels like.
+        </p>
+        <div className="mx-auto mt-8 max-w-2xl">
+          <QuickSandbox />
         </div>
       </section>
 
