@@ -51,3 +51,8 @@ showing a broken form.
 ## License
 
 MIT — free forever, as intended.
+
+## Extra from sole owner
+
+if you find any bugs or problems please i beg you to report it DM it to me on my discord account the username is " ado_zaryan " no caps 
+and the display is " XARYAN " all caps Thank you! and please try your best ! :) .
