@@ -10,6 +10,7 @@ import {
 } from "react";
 import { ConvexProvider, ConvexReactClient, useMutation, useQuery } from "convex/react"; // eslint-disable-line -- ConvexReactClient used below
 import { ConvexAuthProvider, useAuthActions } from "@convex-dev/auth/react";
+import { useConvexAuth } from "convex/react";
 import { api } from "./convex/_generated/api";
 import {
   loadProgress,
@@ -27,10 +28,8 @@ export type AccountUser = { displayName: string; email: string };
 
 type AccountCtx = {
   user: AccountUser | null;
-  /** False until the initial auth state is known (or cloud isn't set up). */
+  /** False until the initial auth state is known. */
   authReady: boolean;
-  /** False when no Convex URL is configured — /auth explains it. */
-  cloudReady: boolean;
   sync: SyncState;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
@@ -56,61 +55,41 @@ function friendlyError(err: unknown): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* Local-only mode (no VITE_CONVEX_URL on this deployment)              */
-/* ------------------------------------------------------------------ */
-
-const NOT_CONFIGURED =
-  "Sign-in isn't configured on this deployment — progress saves in this browser.";
-
-function useLocalOnlyValue(): AccountCtx {
-  return useMemo(
-    () => ({
-      user: null,
-      authReady: true,
-      cloudReady: false,
-      sync: "idle" as SyncState,
-      signIn: async () => {
-        throw new Error(NOT_CONFIGURED);
-      },
-      signUp: async () => {
-        throw new Error(NOT_CONFIGURED);
-      },
-      signOutUser: async () => {},
-      resetEverything: async () => resetLocalProgress(),
-    }),
-    []
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Cloud mode (Convex Auth)                                            */
+/* Cloud account store (Convex Auth)                                   */
 /* ------------------------------------------------------------------ */
 
 function ConvexAccount({ children }: { children: ReactNode }) {
   const act = useAuthActions();
+  const { isLoading } = useConvexAuth();
   const me = useQuery(api.users.me); // undefined=loading · null=signed out
   const cloud = useQuery(api.progress.get);
   const saveRow = useMutation(api.progress.save);
   const wipeRow = useMutation(api.progress.wipe);
 
-  const [timedOut, setTimedOut] = useState(false);
   const [sync, setSync] = useState<SyncState>("idle");
   const lastPulled = useRef("");
   const lastPushed = useRef("");
   const pushTimer = useRef<number | null>(null);
+  /** Resolve handles for `waitForUser` — called when a user actually appears. */
+  const waiters = useRef<(() => void)[]>([]);
 
   const signedIn = me != null;
-  const authReady = cloud !== undefined || timedOut;
+  // `users.me` briefly returns undefined while the token propagates after
+  // sign-in — "ready" means Convex finished loading AND we have an answer.
+  const authReady = !isLoading && me !== undefined;
 
-  // If the backend is unreachable, don't hide the sign-in button forever.
+  // Release waiters the moment a real session materializes (`me` non-null).
   useEffect(() => {
-    const t = window.setTimeout(() => setTimedOut(true), 4000);
-    return () => window.clearTimeout(t);
-  }, []);
+    if (me) {
+      const ws = waiters.current;
+      waiters.current = [];
+      for (const w of ws) w();
+    }
+  }, [me]);
 
   /* Pull: merge cloud progress into local whenever the cloud row changes. */
   useEffect(() => {
-    if (!cloud) return;
+    if (!signedIn || !cloud) return;
     const serial = JSON.stringify(cloud);
     if (serial === lastPulled.current) return;
     lastPulled.current = serial;
@@ -121,7 +100,7 @@ function ConvexAccount({ children }: { children: ReactNode }) {
     const mergedSerial = JSON.stringify(merged.completed);
     if (mergedSerial !== JSON.stringify(local)) saveProgress(merged);
     lastPushed.current = mergedSerial; // the union is already on the server
-  }, [cloud]);
+  }, [signedIn, cloud]);
 
   /* Push: local progress changes while signed in → debounce-save to cloud. */
   useEffect(() => {
@@ -148,6 +127,7 @@ function ConvexAccount({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       try {
         await act.signIn("password", { email, password, flow: "signIn" });
+        await waitForUser(waiters);
       } catch (err) {
         throw new Error(friendlyError(err));
       }
@@ -159,6 +139,7 @@ function ConvexAccount({ children }: { children: ReactNode }) {
     async (name: string, email: string, password: string) => {
       try {
         await act.signIn("password", { name, email, password, flow: "signUp" });
+        await waitForUser(waiters);
       } catch (err) {
         throw new Error(friendlyError(err));
       }
@@ -168,6 +149,7 @@ function ConvexAccount({ children }: { children: ReactNode }) {
 
   const signOutUser = useCallback(async () => {
     await act.signOut();
+    resetLocalProgress();
     lastPulled.current = "";
     lastPushed.current = "";
     setSync("idle");
@@ -191,7 +173,6 @@ function ConvexAccount({ children }: { children: ReactNode }) {
     () => ({
       user: me ? { displayName: me.name, email: me.email } : null,
       authReady,
-      cloudReady: true,
       sync,
       signIn,
       signUp,
@@ -204,31 +185,40 @@ function ConvexAccount({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
+/**
+ * Resolve only when a real session materializes (a waiter fires), bounded so
+ * a broken backend can't hang the flow forever — on timeout the caller sees
+ * the session never arrived and surfaces an error instead of navigating.
+ */
+function waitForUser(waiters: { current: (() => void)[] }): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      const i = waiters.current.indexOf(done);
+      if (i >= 0) waiters.current.splice(i, 1);
+      reject(new Error("Signed in, but the session didn't load in time — check your connection and try again."));
+    }, 8000);
+    function done() {
+      window.clearTimeout(timer);
+      const i = waiters.current.indexOf(done);
+      if (i >= 0) waiters.current.splice(i, 1);
+      resolve();
+    }
+    waiters.current.push(done);
+  });
+}
+
 /* ------------------------------------------------------------------ */
-/* Provider shell — picks cloud or local-only mode from the env        */
+/* Provider shell                                                      */
 /* ------------------------------------------------------------------ */
 
-/**
- * This project's Convex deployment. Deploy URLs are public client endpoints
- * (security comes from Convex Auth, not URL secrecy), so a committed fallback
- * is safe; VITE_CONVEX_URL overrides it for other environments.
- */
-const DEFAULT_CONVEX_URL = "https://accomplished-hyena-726.convex.cloud";
+const CONVEX_DEPLOYMENT = "accomplished-hyena-726";
+const CONVEX_URL = `https://${CONVEX_DEPLOYMENT}.convex.cloud`;
 
 export function AccountProvider({ children }: { children: ReactNode }) {
-  const convexUrl =
-    (import.meta.env.VITE_CONVEX_URL as string | undefined) ?? DEFAULT_CONVEX_URL;
-  // A localhost URL baked in from a dev build can never work in production —
-  // treat it as unconfigured so the app falls back to local-only mode.
-  const usable =
-    convexUrl && !/^https?:\/\/(localhost|127\.0\.0\.1)/.test(convexUrl)
-      ? convexUrl
-      : undefined;
-  const client = useMemo(() => (usable ? new ConvexReactClient(usable) : null), [usable]);
+  // Always use the production Convex cloud URL.  The env var from `convex dev`
+  // points at localhost and must never leak into a production build.
+  const client = useMemo(() => new ConvexReactClient(CONVEX_URL), []);
 
-  if (!client) {
-    return <Ctx.Provider value={useLocalOnlyValue()}>{children}</Ctx.Provider>;
-  }
   return (
     <ConvexProvider client={client}>
       <ConvexAuthProvider client={client}>
