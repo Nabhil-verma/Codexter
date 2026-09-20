@@ -1,13 +1,13 @@
 # code-learn.reimagined
 
-A 100% free, interactive code teacher. Ten tracks, 60+ hands-on lessons —
+A 100% free, interactive code teacher. Thirteen tracks, 74 hands-on lessons —
 you write and run real code from minute one, in the browser, with zero signup.
 
 **Live:** [codeimagine.freebuff.app](https://codeimagine.freebuff.app)
 
 ## What's inside
 
-- **10 curriculum tracks** — Web foundations, React, backend/Node, DSA, Python, Git & testing, DevOps/Linux/Docker, web security (OWASP), system design, and debugging/testing practice
+- **13 curriculum tracks** — Web foundations, React, Tailwind UI engineering, advanced React state, API integration, backend/Node, DSA, Python, Git & testing, DevOps/Linux/Docker, web security (OWASP), system design, and debugging/testing practice
 - **Live sandbox runner** — every lesson has an editor + console with self-checking exercises, "predict the output" challenges, and an infinite-loop guard
 - **Visual execution engine** — step through code like Python Tutor: variables, call stack, and console replay line by line
 - **Tiered hint system** — conceptual nudge → syntax reminder → code skeleton, before any full solution
@@ -65,9 +65,11 @@ Deploy the new functions with `npx convex deploy` before the leaderboard and
 Guilds panels can load in production; until then those panels show an inline
 "offline" state instead of breaking the page.
 
-To point the app at a Convex deployment, set `VITE_CONVEX_URL`. Without it,
-the app runs in local-only mode and the sign-in page explains that instead of
-showing a broken form.
+The app ships pointed at a public Convex deployment, so accounts, sync, and the
+leaderboard work with no environment setup. The client URL is built from the
+`CONVEX_DEPLOYMENT` constant in `src/AccountProvider.tsx` — change it there to
+target a different deployment. A `VITE_CONVEX_URL` env var is deliberately not
+consulted, so a `convex dev` localhost URL can never leak into a production build.
 
 ## License
 

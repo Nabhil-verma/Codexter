@@ -437,10 +437,7 @@ const data = [5, 2, 8, 1, 9, 3];
 console.log("merge:", JSON.stringify(mergeSort(data)));
 console.log("quick:", JSON.stringify(quickSort(data)));
 
-// TODO: build a 1000-item array, sort with both, and print the first 5
-const big = Array.from({ length: 1000 }, () => Math.floor(Math.random() * 10000));
-console.log("big merge ok:", JSON.stringify(mergeSort(big).slice(0, 5)));
-console.log("big quick ok:", JSON.stringify(quickSort(big).slice(0, 5)));`,
+// TODO: build a 1000-item array, sort with both, and print the first 5`,
       check: {
         expr: "output.includes('merge: [1,2,3,5,8,9]') && output.includes('quick: [1,2,3,5,8,9]') && output.includes('big merge ok:')",
         hint: "Both sorts must print the sorted six-number array and the sorted big-array preview.",
@@ -662,7 +659,7 @@ function addEdge(a, b) {
   graph.get(b).push(a);
 }
 
-["A","B"], ["A","C"], ["B","D"], ["C","E"], ["D","E"].forEach(
+[["A","B"], ["A","C"], ["B","D"], ["C","E"], ["D","E"]].forEach(
   ([a, b]) => addEdge(a, b)
 );
 
@@ -697,10 +694,10 @@ function shortestDist(graph, start, end) {
   // track (node, distance) pairs in the queue
   return -1;
 }
-console.log("shortest A→E:", shortestDist(graph, "A", "E")); // 3? count the hops!`,
+console.log("shortest A→E:", shortestDist(graph, "A", "E")); // count the hops — shortest is 2`,
       check: {
-        expr: "output.includes('BFS from A: A B C D E') && output.includes('shortest A→E: 3')",
-        hint: "BFS visits rings outward (A, then B/C, then D/E). Distance A→E via B or C then D is 3 hops... check your count: A→C→E is 2 hops, so expect 2.",
+        expr: "output.includes('BFS from A: A B C D E') && output.includes('shortest A→E: 2')",
+        hint: "BFS visits rings outward (A, then B and C, then D and E). Count edges, not nodes: A→C→E is 2 hops, while A→B→D→E is 3. Expect 2.",
       },
       predict: [
         {

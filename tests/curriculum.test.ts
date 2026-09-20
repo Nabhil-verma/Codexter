@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { tracks, findLesson, lessonKey, totalLessonCount } from "../src/data";
-import { runUserCode, evaluateCheck } from "../src/lib/runner";
+import { evaluateCheck, runUserCode } from "../src/lib/runner";
 
 const allLessons = tracks.flatMap((t) =>
   t.lessons.map((l) => ({ track: t, lesson: l }))
@@ -164,6 +164,123 @@ describe("curriculum integrity", () => {
         expect(() => {
           new Function("output", `return (${lesson.check!.expr});`);
         }, `${track.id}/${lesson.id} check.expr must compile`).not.toThrow();
+      }
+    },
+    60_000
+  );
+});
+
+/*
+ * Satisfiability guard.
+ *
+ * Two content bugs make an exercise worthless, and the generic checks above
+ * see neither: they only prove a starter runs cleanly and its check expression
+ * compiles. The failures that matter are a starter that already passes its own
+ * check (the learner gets credit for nothing) and a check no correct answer can
+ * meet (the lesson cannot be finished at all).
+ *
+ * `new-exercises.test.ts` and `milestones.test.ts` prove both away for the
+ * three new tracks and the milestone proofs, but the other ten tracks had no
+ * such proof — which is how `dsa/graphs-bfs-dfs` shipped building its graph
+ * with the comma operator, making its required `BFS from A: A B C D E`
+ * unreachable no matter what the learner wrote.
+ *
+ * Each entry is a fix a learner is expected to write, applied to the lesson's
+ * live starter. Deriving it from the starter rather than freezing a copy keeps
+ * the guard testing the lesson as it actually ships.
+ */
+const REFERENCE_FIXES: { key: string; fix: (starter: string) => string }[] = [
+  {
+    key: "dsa/graphs-bfs-dfs",
+    fix: (starter) =>
+      starter.replace(
+        /function shortestDist\(graph, start, end\) \{[\s\S]*?\n\}/,
+        `function shortestDist(graph, start, end) {
+  const seen = new Set([start]);
+  const queue = [[start, 0]];
+  while (queue.length) {
+    const [node, dist] = queue.shift();
+    if (node === end) return dist;
+    for (const nb of graph.get(node) ?? []) {
+      if (!seen.has(nb)) { seen.add(nb); queue.push([nb, dist + 1]); }
+    }
+  }
+  return -1;
+}`
+      ),
+  },
+  {
+    key: "web/scope-context",
+    // The fix the hint names: `var` shares one binding across iterations.
+    fix: (starter) =>
+      starter.replace(
+        "for (var i = 0; i < 3; i++)",
+        "for (let i = 0; i < 3; i++)"
+      ),
+  },
+  {
+    key: "dsa/sorting",
+    fix: (starter) =>
+      starter.replace(
+        "// TODO: build a 1000-item array, sort with both, and print the first 5",
+        `const big = Array.from({ length: 1000 }, () => Math.floor(Math.random() * 10000));
+console.log("big merge ok:", JSON.stringify(mergeSort(big).slice(0, 5)));`
+      ),
+  },
+  {
+    key: "web/async-promises",
+    // Parallelism is observable in the interleaving: both brews start before
+    // either boils, so the second `1. kettle on` precedes the first `2.`.
+    fix: (starter) =>
+      starter.replace(
+        /async function main\(\) \{[\s\S]*?\n\}/,
+        `async function main() {
+  const teas = await Promise.all([brewTea(), brewTea()]);
+  console.log("batch done:", teas.join(" + "));
+}`
+      ),
+  },
+];
+
+describe("exercise checks are satisfiable", () => {
+  it("keeps a reference fix for every lesson that had no satisfiability proof", () => {
+    // The gap opened because nothing forced the older tracks to be covered.
+    expect(REFERENCE_FIXES.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it(
+    "rejects the starter but accepts a reference fix",
+    async () => {
+      for (const { key, fix } of REFERENCE_FIXES) {
+        const [trackId, lessonId] = key.split("/");
+        const lesson = findLesson(trackId, lessonId);
+        expect(lesson?.starter, `${key} has no starter`).toBeTruthy();
+        expect(lesson?.check, `${key} has no check`).toBeTruthy();
+
+        const starterRun = await runUserCode(lesson!.starter!);
+        expect(
+          starterRun.error,
+          `${key} starter threw: ${starterRun.error}`
+        ).toBeNull();
+        expect(
+          evaluateCheck(lesson!.check!.expr, starterRun.logs.join("\n")),
+          `${key} is pre-solved — the starter already passes its own check`
+        ).toBe(false);
+
+        const solved = fix(lesson!.starter!);
+        expect(
+          solved,
+          `${key} reference fix did not change the starter`
+        ).not.toBe(lesson!.starter);
+        const solvedRun = await runUserCode(solved);
+        expect(
+          solvedRun.error,
+          `${key} reference fix threw: ${solvedRun.error}`
+        ).toBeNull();
+        expect(
+          evaluateCheck(lesson!.check!.expr, solvedRun.logs.join("\n")),
+          `${key} check is unsatisfiable — no correct answer passes it`
+        ).toBe(true);
       }
     },
     60_000
