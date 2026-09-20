@@ -159,6 +159,18 @@ app.handle();`,
       id: "express-middleware",
       title: "Express & the Middleware Pipeline",
       minutes: 10,
+      sort: {
+        prompt: "Order the request as it flows down the middleware pipeline.",
+        items: [
+          "logger middleware logs the request",
+          "express.json() parses the body into req.body",
+          "auth middleware attaches req.user or rejects",
+          "the route handler builds the response",
+          "error middleware catches whatever threw",
+        ],
+        explanation:
+          "Order is everything: parse before you read the body, authenticate before you trust the caller, and register error handlers last so they catch failures from everything above.",
+      },
       body: `Express is a **pipeline**: each request flows through middleware — functions with \`(req, res, next)\` — until one responds.
 
 \`\`\`

@@ -99,6 +99,17 @@ export const webTrack: Track = {
       id: "box-model-deep",
       title: "The Box Model, Margins & Collapsing",
       minutes: 9,
+      sort: {
+        prompt: "Order the box model layers from the outside in.",
+        items: [
+          "margin — space pushed away outside the border",
+          "border — the visible edge of the box",
+          "padding — space between the border and the content",
+          "content — the text, image, or child elements",
+        ],
+        explanation:
+          "From outside in: margin, border, padding, content. That is also the order browsers paint them, which is why margins collapse but padding never does.",
+      },
       reading: true,
       body: `Every element is a **box of nested layers** — margin, border, padding, content — and layout bugs are usually box-model bugs.
 

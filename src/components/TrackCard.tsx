@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { tracks, type Track } from "../data";
 import { scoreFor, useProgressState, type Progress } from "../lib/progress";
 
@@ -17,31 +18,39 @@ export default function TrackCard({ track }: { track: Track }) {
   return (
     <Link
       to={"/learn/" + track.id + "/" + track.lessons[0].id}
-      className="card card-hover group flex flex-col gap-4 p-7"
+      className="glass glass-edge group relative flex h-full flex-col gap-4 overflow-hidden rounded-2xl border border-paper-200/60 p-7 transition-colors duration-300 hover:border-gold-400/50"
     >
-      <div className="flex items-start justify-between">
-        <span className="font-display text-3xl text-gold-500">
+      {/* Hover gradient overlay */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-gold-400/0 to-gold-300/0 opacity-0 transition-opacity duration-300 group-hover:from-gold-400/5 group-hover:to-gold-300/5 group-hover:opacity-100" />
+
+      <div className="relative z-10 flex items-start justify-between" style={{ transform: "translateZ(24px)" }}>
+        <span className="font-display text-3xl font-bold gradient-text">
           {String(tracks.indexOf(track) + 1).padStart(2, "0")}
         </span>
-        <span className="font-mono text-xs text-ink-600">
+        <span className="rounded-full border border-paper-200/60 bg-paper-50/50 px-2.5 py-1 font-mono text-xs text-ink-600">
           {done}/{total} lessons
-        </span>
+</span>
       </div>
-      <div>
+      <div className="relative z-10" style={{ transform: "translateZ(16px)" }}>
         <h3 className="font-display text-xl font-semibold text-ink-950 transition group-hover:text-gold-600">
           {track.title}
         </h3>
         <p className="mt-2 text-sm leading-relaxed text-ink-600">{track.blurb}</p>
       </div>
-      <div className="mt-auto h-px w-full bg-paper-200">
-        <div
-          className="h-px bg-gold-400 transition-all"
-          style={{ width: pct + "%" }}
-        />
+      <div className="relative z-10 mt-auto" style={{ transform: "translateZ(20px)" }}>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-paper-200/60">
+          <motion.div
+            className="h-full rounded-full bg-gradient-to-r from-gold-500 to-gold-300"
+            initial={{ width: 0 }}
+            whileInView={{ width: pct + "%" }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+          />
+        </div>
+        <span className="mt-3 inline-block font-mono text-xs text-gold-600 transition group-hover:translate-x-1">
+          begin →
+        </span>
       </div>
-      <span className="font-mono text-xs text-gold-600 transition group-hover:translate-x-1">
-        begin →
-      </span>
     </Link>
   );
 }

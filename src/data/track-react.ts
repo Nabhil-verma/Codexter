@@ -229,6 +229,17 @@ console.log("re-renders triggered:", rerenders);`,
       id: "hooks-effect",
       title: "Hooks in Depth: useEffect & Friends",
       minutes: 12,
+      sort: {
+        prompt: "Order what React actually does when an effect re-runs.",
+        items: [
+          "the component function runs and returns JSX",
+          "React commits the new DOM to the screen",
+          "the previous effect's cleanup function runs",
+          "the new effect callback runs",
+        ],
+        explanation:
+          "Render, then commit, then cleanup, then effect. Effects never block the paint — that ordering is exactly why the dependency array matters.",
+      },
       reading: true,
       body: `Hooks let function components hold state and perform **side effects**.
 

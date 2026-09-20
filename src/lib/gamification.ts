@@ -13,11 +13,225 @@ export function lessonXp(score: number): number {
   return 50 + (score >= 1 ? 25 : 0);
 }
 
-export function totalXp(progress: Progress): number {
+/* ---------------- Day buckets: XP grouped by calendar day ---------------- */
+
+export type DayBucket = {
+  /** `YYYY-MM-DD`, or "" for legacy keys with no date stamp */
+  day: string;
+  /** lessons whose best score landed on this day */
+  lessons: number;
+  /** raw lesson XP earned this day (before quest bonuses) */
+  xp: number;
+  /** keys completed flawlessly on this day */
+  flawless: number;
+};
+
+/**
+ * Group the progress map by the day each key was stamped. Derived, never
+ * persisted — the whole game layer stays replayable from one source of truth.
+ */
+export function dayBuckets(progress: Progress): Map<string, DayBucket> {
+  const map = new Map<string, DayBucket>();
+  for (const [key, score] of Object.entries(progress.completed)) {
+    const day = key.split("!")[1] ?? "";
+    const b = map.get(day) ?? { day, lessons: 0, xp: 0, flawless: 0 };
+    b.lessons += 1;
+    b.xp += lessonXp(score);
+    if (score >= 1) b.flawless += 1;
+    map.set(day, b);
+  }
+  return map;
+}
+
+/** Sum of lesson XP only — no quest bonuses. */
+export function lessonXpTotal(progress: Progress): number {
   return Object.values(progress.completed).reduce(
     (sum, score) => sum + lessonXp(score),
     0
   );
+}
+
+/* ------------------ Daily quests + consistency bonus ------------------ */
+
+/**
+ * Quests are computed, not stored: every day's completion is replayed from
+ * the progress map, so bonus XP is deterministic across devices and never
+ * awarded twice. `bonus` is the real XP paid for finishing the quest.
+ */
+export type QuestDef = {
+  id: string;
+  icon: string;
+  title: string;
+  detail: string;
+  target: number;
+  /** which per-day counter the target is measured against */
+  metric: "lessons" | "xp" | "flawless";
+  bonus: number;
+};
+
+export const DAILY_QUESTS: QuestDef[] = [
+  {
+    id: "show-up",
+    icon: "⚔️",
+    title: "First Blood",
+    detail: "Finish 1 lesson today",
+    target: 1,
+    metric: "lessons",
+    bonus: 60,
+  },
+  {
+    id: "triple",
+    icon: "🔥",
+    title: "Triple Threat",
+    detail: "Finish 3 lessons today",
+    target: 3,
+    metric: "lessons",
+    bonus: 150,
+  },
+  {
+    id: "xp-hunter",
+    icon: "✦",
+    title: "XP Hunter",
+    detail: "Earn 200 XP today",
+    target: 200,
+    metric: "xp",
+    bonus: 100,
+  },
+  {
+    id: "flawless",
+    icon: "◎",
+    title: "Flawless Run",
+    detail: "Score 100% on any lesson today",
+    target: 1,
+    metric: "flawless",
+    bonus: 75,
+  },
+];
+
+/** Bonus XP paid for whatever is left open on the day's quest list. */
+export const STREAK_BONUS = 25;
+
+function metricValue(b: DayBucket, metric: QuestDef["metric"]): number {
+  if (metric === "lessons") return b.lessons;
+  if (metric === "xp") return b.xp;
+  return b.flawless;
+}
+
+/** Bonus from the daily quests on one day (quest completion only). */
+export function dayQuestBonus(bucket: DayBucket | undefined): number {
+  if (!bucket) return 0;
+  let bonus = 0;
+  for (const q of DAILY_QUESTS) {
+    if (metricValue(bucket, q.metric) >= q.target) bonus += q.bonus;
+  }
+  return bonus;
+}
+
+/** `YYYY-MM-DD` for the previous calendar day. */
+export function prevDayKey(day: string): string {
+  const d = new Date(day + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** XP paid for showing up two days running — the habit reward. */
+function consistencyBonus(activeDays: Set<string>, day: string): number {
+  return activeDays.has(prevDayKey(day)) ? STREAK_BONUS : 0;
+}
+
+function activeSet(buckets: Map<string, DayBucket>): Set<string> {
+  return new Set([...buckets.keys()].filter((d) => d !== ""));
+}
+
+/** Every XP source on a single day: lessons + quests + consistency. */
+export function dayXp(buckets: Map<string, DayBucket>, days: Set<string>, day: string): number {
+  const b = buckets.get(day);
+  if (!b) return 0;
+  return b.xp + dayQuestBonus(b) + consistencyBonus(days, day);
+}
+
+/**
+ * XP earned between two `YYYY-MM-DD` days inclusive — the engine behind the
+ * weekly and monthly leaderboard brackets.
+ */
+export function xpInRange(progress: Progress, fromDay: string, toDay: string): number {
+  const buckets = dayBuckets(progress);
+  const days = activeSet(buckets);
+  let xp = 0;
+  for (const key of days) {
+    if (key < fromDay || key > toDay) continue;
+    xp += dayXp(buckets, days, key);
+  }
+  return xp;
+}
+
+/** Lesson XP + quests + consistency, across all of history. */
+export function totalXp(progress: Progress): number {
+  const buckets = dayBuckets(progress);
+  const days = activeSet(buckets);
+  let xp = 0;
+  for (const [key, b] of buckets) {
+    // Legacy keys carry no date, so they only contribute their lesson XP.
+    xp += key === "" ? b.xp : dayXp(buckets, days, key);
+  }
+  return xp;
+}
+
+/** Quest bonuses + consistency XP, lifetime. Shown as its own stat. */
+export function bonusXpTotal(progress: Progress): number {
+  return totalXp(progress) - lessonXpTotal(progress);
+}
+
+/* ------------------ Daily quest board (today's view) ------------------ */
+
+export type QuestView = {
+  id: string;
+  icon: string;
+  title: string;
+  detail: string;
+  progress: number;
+  target: number;
+  bonus: number;
+  done: boolean;
+};
+
+/** Today's quests with live progress — drives the quest board UI. */
+export function dailyQuests(progress: Progress, today: string): QuestView[] {
+  const buckets = dayBuckets(progress);
+  const bucket = buckets.get(today);
+  return DAILY_QUESTS.map((q) => {
+    const raw = bucket ? metricValue(bucket, q.metric) : 0;
+    return {
+      id: q.id,
+      icon: q.icon,
+      title: q.title,
+      detail: q.detail,
+      progress: Math.min(raw, q.target),
+      target: q.target,
+      bonus: q.bonus,
+      done: raw >= q.target,
+    };
+  });
+}
+
+/** Quests finished today, out of the total — the "2/4" pill. */
+export function questsDoneToday(progress: Progress, today: string): number {
+  return dailyQuests(progress, today).filter((q) => q.done).length;
+}
+
+/* ------------------------- Bracket windows ------------------------- */
+
+/** Monday of the current ISO week, as `YYYY-MM-DD`. */
+export function weekStartKey(today: string): string {
+  const d = new Date(today + "T00:00:00Z");
+  const dow = (d.getUTCDay() + 6) % 7; // Mon = 0 … Sun = 6
+  d.setUTCDate(d.getUTCDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+
+/** First day of the current month, as `YYYY-MM-DD`. */
+export function monthStartKey(today: string): string {
+  return today.slice(0, 8) + "01";
 }
 
 /** 250 XP ≈ 4 lessons — one level. */
@@ -103,6 +317,155 @@ export function lessonsToday(progress: Progress, today: string): number {
   ).length;
 }
 
+/* ------------------------- Ascension tiers ------------------------- */
+
+/**
+ * RPG progression above plain levels. Every tier changes how a learner is
+ * framed on the leaderboard — the flex has to be visible to matter.
+ */
+export type Ascension = {
+  id: string;
+  name: string;
+  roman: string;
+  minLevel: number;
+  /** Tailwind gradient for the avatar frame / rank medallion */
+  frame: string;
+  /** Tailwind text color for the tier name */
+  accent: string;
+  /** What the tier unlocks, written for the player */
+  perk: string;
+};
+
+export const ASCENSIONS: Ascension[] = [
+  {
+    id: "initiate",
+    name: "Initiate",
+    roman: "I",
+    minLevel: 1,
+    frame: "from-ink-300 to-ink-200",
+    accent: "text-ink-600",
+    perk: "Your name on the board",
+  },
+  {
+    id: "apprentice",
+    name: "Apprentice",
+    roman: "II",
+    minLevel: 2,
+    frame: "from-emerald-400 to-emerald-200",
+    accent: "text-emerald-600",
+    perk: "Emerald frame + first titles",
+  },
+  {
+    id: "adept",
+    name: "Adept",
+    roman: "III",
+    minLevel: 4,
+    frame: "from-sky-400 to-cyan-200",
+    accent: "text-sky-600",
+    perk: "Aurora frame + animated streak flame",
+  },
+  {
+    id: "veteran",
+    name: "Veteran",
+    roman: "IV",
+    minLevel: 6,
+    frame: "from-violet-500 to-fuchsia-300",
+    accent: "text-violet-600",
+    perk: "Violet frame + guild banner slot",
+  },
+  {
+    id: "archon",
+    name: "Archon",
+    roman: "V",
+    minLevel: 9,
+    frame: "from-gold-500 to-gold-300",
+    accent: "text-gold-600",
+    perk: "Gilded frame + glowing rank row",
+  },
+  {
+    id: "ascendant",
+    name: "Ascendant",
+    roman: "VI",
+    minLevel: 12,
+    frame: "from-rose-500 via-fuchsia-400 to-gold-300",
+    accent: "text-rose-600",
+    perk: "Tri-color frame + rare titles",
+  },
+  {
+    id: "mythic",
+    name: "Mythic",
+    roman: "VII",
+    minLevel: 16,
+    frame: "from-gold-300 via-paper-50 to-gold-500",
+    accent: "text-gold-700",
+    perk: "Living prism frame + Mythic titles",
+  },
+];
+
+export function ascensionFor(level: number) {
+  let idx = 0;
+  for (let i = 0; i < ASCENSIONS.length; i++) {
+    if (level >= ASCENSIONS[i].minLevel) idx = i;
+  }
+  const current = ASCENSIONS[idx];
+  const next = ASCENSIONS[idx + 1] ?? null;
+  const span = next ? next.minLevel - current.minLevel : 0;
+  const into = next ? level - current.minLevel : 0;
+  return {
+    current,
+    next,
+    levelsToNext: next ? next.minLevel - level : 0,
+    pct: next ? Math.round((into / span) * 100) : 100,
+  };
+}
+
+/**
+ * Trust the stored tier id, but fall back to deriving one from the level so a
+ * stale or unknown id still renders a frame instead of crashing the board.
+ */
+export function resolveAscension(
+  id: string | null | undefined,
+  level: number
+): Ascension {
+  return ASCENSIONS.find((a) => a.id === id) ?? ascensionFor(level).current;
+}
+
+/** Ascension tiers unlocked at a given level (newest first). */
+export function unlockedAscensions(level: number): Ascension[] {
+  return ASCENSIONS.filter((a) => a.minLevel <= level).reverse();
+}
+
+/* --------------------------- Titles --------------------------- */
+
+export type Title = { id: string; label: string; minLevel: number };
+
+export const TITLES: Title[] = [
+  { id: "novice", label: "Novice", minLevel: 1 },
+  { id: "cadet", label: "Code Cadet", minLevel: 2 },
+  { id: "slinger", label: "Syntax Slinger", minLevel: 4 },
+  { id: "bugslayer", label: "Bug Slayer", minLevel: 6 },
+  { id: "refactorer", label: "The Refactorer", minLevel: 8 },
+  { id: "architect", label: "Systems Architect", minLevel: 11 },
+  { id: "ascendant", label: "Ascendant", minLevel: 14 },
+  { id: "mythic", label: "Mythic Mind", minLevel: 16 },
+];
+
+/** Titles the learner has unlocked and may display. */
+export function unlockedTitles(level: number): Title[] {
+  return TITLES.filter((t) => t.minLevel <= level).reverse();
+}
+
+/** Resolve a stored title id back to its label (falls back to the id). */
+export function titleLabel(id: string | undefined | null): string | null {
+  if (!id) return null;
+  return TITLES.find((t) => t.id === id)?.label ?? id;
+}
+
+/** The highest title a level grants — the default flex. */
+export function defaultTitle(level: number): string {
+  return unlockedTitles(level)[0]?.id ?? TITLES[0].id;
+}
+
 /* --------------------------- Badges --------------------------- */
 
 export type Badge = {
@@ -123,7 +486,18 @@ const ALL_BADGES: Badge[] = [
   { id: "track-finisher", icon: "❖", title: "Track Finisher", description: "Complete every lesson in a track." },
   { id: "explorer", icon: "❂", title: "Explorer", description: "Finish a lesson in 5 different tracks." },
   { id: "polyglot", icon: "✺", title: "Polyglot", description: "Finish a lesson in every track." },
+  { id: "level-5", icon: "♛", title: "Seasoned", description: "Reach level 5." },
+  { id: "perfect-day", icon: "🏅", title: "Perfect Day", description: "Clear every daily quest in a single day." },
+  { id: "ascended", icon: "❈", title: "Archon Ascendant", description: "Ascend to the Archon tier." },
+  { id: "guildmate", icon: "⚔", title: "Guildmate", description: "Join a guild." },
+  { id: "guild-founder", icon: "⚑", title: "Guild Founder", description: "Found your own guild." },
 ];
+
+/** Context the progress map can't express on its own. */
+export type BadgeContext = {
+  level?: number;
+  clanRole?: "none" | "member" | "owner";
+};
 
 export function allBadges(): Badge[] {
   return ALL_BADGES;
@@ -131,8 +505,20 @@ export function allBadges(): Badge[] {
 
 export function computeBadges(
   progress: Progress,
-  streak: Streak
+  streak: Streak,
+  ctx: BadgeContext = {}
 ): EarnedBadge[] {
+  const level = ctx.level ?? 0;
+  const clanRole = ctx.clanRole ?? "none";
+  const hasPerfectDay = (() => {
+    const buckets = dayBuckets(progress);
+    const days = activeSet(buckets);
+    for (const day of days) {
+      // Consistency XP is deliberately excluded — a Perfect Day is quests only.
+      if (dayQuestBonus(buckets.get(day)) === DAILY_QUESTS.reduce((n, q) => n + q.bonus, 0)) return true;
+    }
+    return false;
+  })();
   const doneKeys = Object.keys(progress.completed).filter(
     (k) => (progress.completed[k] ?? 0) >= 1
   );
@@ -157,6 +543,11 @@ export function computeBadges(
       case "track-finisher": earned = tracks.some((t) => trackFinished(t.id)); break;
       case "explorer": earned = doneTrackIds.size >= 5; break;
       case "polyglot": earned = doneTrackIds.size >= tracks.length; break;
+      case "level-5": earned = level >= 5; break;
+      case "perfect-day": earned = hasPerfectDay; break;
+      case "ascended": earned = level >= ascensionFor(level).current.minLevel && ascensionFor(level).current.id === "archon"; break;
+      case "guildmate": earned = clanRole !== "none"; break;
+      case "guild-founder": earned = clanRole === "owner"; break;
     }
     return { ...b, earned };
   });

@@ -60,6 +60,26 @@ describe("curriculum integrity", () => {
     }
   });
 
+  it("every sequence challenge has ≥3 unique, non-empty steps", () => {
+    const withSort = allLessons.filter(({ lesson }) => lesson.sort);
+    expect(withSort.length).toBeGreaterThanOrEqual(3);
+
+    for (const { track, lesson } of withSort) {
+      const s = lesson.sort!;
+      const where = `${track.id}/${lesson.id}`;
+      expect(s.prompt.length, where).toBeGreaterThan(10);
+      expect(s.items.length, where).toBeGreaterThanOrEqual(3);
+      // Duplicate steps would make the puzzle ambiguous: the learner could
+      // produce a different-but-identical order and be marked wrong.
+      expect(new Set(s.items).size, `${where} has duplicate steps`).toBe(
+        s.items.length
+      );
+      for (const item of s.items) {
+        expect(item.trim().length, where).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it("lesson lookups work", () => {
     expect(findLesson("web", "css-layout")?.sandbox).toBe(true);
     expect(findLesson("dsa", "graphs-bfs-dfs")).toBeTruthy();

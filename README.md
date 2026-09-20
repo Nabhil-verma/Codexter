@@ -12,11 +12,21 @@ you write and run real code from minute one, in the browser, with zero signup.
 - **Visual execution engine** — step through code like Python Tutor: variables, call stack, and console replay line by line
 - **Tiered hint system** — conceptual nudge → syntax reminder → code skeleton, before any full solution
 - **Plain-English error translator** — runtime errors get beginner-friendly explanations above the console
-- **Gamification** — XP, levels, daily streaks, 8 badges, and a GitHub-style activity heatmap on your public portfolio
+- **Gamification game loop** — XP, levels, daily streaks, daily quests, 13 badges, and a GitHub-style activity heatmap on your public portfolio
+- **Global leaderboard** — live weekly / monthly / all-time brackets with glassmorphic rank rows, ascension frames and titles, and your own row glowing as it reorders
+- **RPG ascension** — seven tiers (Initiate → Mythic) that change your avatar frame and unlock equippable titles, with a level ring and tier ladder on your profile
+- **Guilds** — form a study group of up to 25, pool your XP on the guild board, and unlock collective rewards from Band to Legend
+- **Interactive course elements** — drag-and-drop sequence challenges, a timed rapid-fire quiz mode with combo streaks and screen shake, and animated progress reveals
 - **Printable certificates** — finish every lesson in a track to unlock a gold-sealed certificate
 - **Progress that follows you** — saved locally by default; optional Convex Auth email sign-in syncs it across devices
 - **AI Socratic tutor (BYOK)** — bring your own Gemini or Claude key; it asks guiding questions instead of giving answers
 - **PWA** — installable, with offline caching of lessons
+
+## Gamification plan
+
+The full feature plan behind the game layer — the XP economy, quest and streak
+math, ascension tiers, guild rewards, the backend player-card model, and
+drop-in snippets for every component — lives in **[GAMIFICATION.md](./GAMIFICATION.md)**.
 
 ## Tech stack
 
@@ -38,11 +48,22 @@ The app works fully without a backend — progress lives in `localStorage`.
 Accounts are built on **Convex Auth** (email/password, zero API keys in the
 frontend):
 
-- `src/convex/` — schema (auth tables + `progress`), auth config, HTTP routes,
-  and `progress`/`users` functions. Functions live in `src/convex` via
-  `convex.json`.
+- `src/convex/` — schema (auth tables + `progress`, `profiles`, `clans`), auth
+  config, HTTP routes, and the `progress`/`users`/`profiles`/`leaderboard`/`clans`
+  functions. Functions live in `src/convex` via `convex.json`.
 - On sign-in the cloud copy is merged with local (best score per key wins);
   local changes debounce-push to the cloud while signed in.
+- `profiles` is the public player card: XP totals per bracket, level,
+  ascension tier, streak and guild. The client recomputes it from the progress
+  map and pushes it, so leaderboard queries sort server-side without reading
+  anyone's full progress blob.
+- XP, quests and ascension are all **derived** from the progress map (see
+  `src/lib/gamification.ts`) — no second source of truth, and every reward is
+  replayable and testable without touching the backend.
+
+Deploy the new functions with `npx convex deploy` before the leaderboard and
+Guilds panels can load in production; until then those panels show an inline
+"offline" state instead of breaking the page.
 
 To point the app at a Convex deployment, set `VITE_CONVEX_URL`. Without it,
 the app runs in local-only mode and the sign-in page explains that instead of

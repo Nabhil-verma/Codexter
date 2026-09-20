@@ -13,6 +13,7 @@ import { ConvexAuthProvider, useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { api } from "./convex/_generated/api";
 import {
+  lessonIdOf,
   loadProgress,
   mergeProgress,
   resetLocalProgress,
@@ -20,6 +21,17 @@ import {
   subscribeProgress,
   type Progress,
 } from "./lib/progress";
+import {
+  ascensionFor,
+  computeStreak,
+  levelFor,
+  monthStartKey,
+  previousDayKeys,
+  todayKey,
+  totalXp,
+  weekStartKey,
+  xpInRange,
+} from "./lib/gamification";
 
 export type SyncState = "idle" | "syncing" | "synced" | "error";
 
@@ -65,6 +77,7 @@ function ConvexAccount({ children }: { children: ReactNode }) {
   const cloud = useQuery(api.progress.get);
   const saveRow = useMutation(api.progress.save);
   const wipeRow = useMutation(api.progress.wipe);
+  const saveProfile = useMutation(api.profiles.sync);
 
   const [sync, setSync] = useState<SyncState>("idle");
   const lastPulled = useRef("");
@@ -122,6 +135,41 @@ function ConvexAccount({ children }: { children: ReactNode }) {
       if (pushTimer.current) window.clearTimeout(pushTimer.current);
     };
   }, [signedIn, saveRow]);
+
+  /*
+   * Publish the public player card. Everything here is derived from the local
+   * progress map, so the leaderboard can sort server-side without the server
+   * ever parsing a progress blob. Best-effort: a failure never blocks learning.
+   */
+  useEffect(() => {
+    if (!signedIn) return;
+    const push = () => {
+      const p = loadProgress();
+      const today = todayKey();
+      const streak = computeStreak(p, today, previousDayKeys());
+      const level = levelFor(totalXp(p));
+      const lessonsDone = new Set(
+        Object.entries(p.completed)
+          .filter(([, score]) => score >= 1)
+          .map(([key]) => lessonIdOf(key))
+      ).size;
+      void saveProfile({
+        xp: totalXp(p),
+        xpWeek: xpInRange(p, weekStartKey(today), today),
+        xpMonth: xpInRange(p, monthStartKey(today), today),
+        level: level.level,
+        ascension: ascensionFor(level.level).current.id,
+        streakCurrent: streak.current,
+        streakLongest: streak.longest,
+        lastActiveDay: streak.lastDay ?? undefined,
+        lessonsDone,
+      }).catch(() => {
+        // Offline or transient backend error — progress itself is unaffected.
+      });
+    };
+    push();
+    return subscribeProgress(push);
+  }, [signedIn, saveProfile]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {

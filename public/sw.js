@@ -1,4 +1,4 @@
-const CACHE_NAME = "codelearn-v1";
+const CACHE_NAME = "codelearn-v2";
 const PRECACHE_URLS = ["/", "/index.html"];
 
 self.addEventListener("install", (event) => {
@@ -18,10 +18,18 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Network-first for navigation, cache-first for assets
-  if (event.request.mode === "navigate") {
+  // Network-first for navigation and scripts (stale code = broken app),
+  // cache-first only for fonts/images where staleness is harmless.
+  const url = new URL(event.request.url);
+  const cacheFirst =
+    event.request.mode !== "navigate" &&
+    /\.(png|jpg|jpeg|gif|webp|svg|ico|woff|woff2|ttf)$/i.test(url.pathname);
+
+  if (event.request.mode === "navigate" || !cacheFirst) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match("/index.html"))
+      fetch(event.request).catch(() =>
+        caches.match(event.request).then((cached) => cached || caches.match("/index.html"))
+      )
     );
   } else {
     event.respondWith(

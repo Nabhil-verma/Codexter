@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { callAi, loadAiSettings, subscribeAiSettings, type TutorMessage } from "../lib/ai";
 
 type Props = {
@@ -29,6 +29,14 @@ CRITICAL RULES:
 - Be warm and encouraging. Treat mistakes as learning opportunities.
 - If they seem stuck after 3 exchanges, give a very broad conceptual nudge (still no code).`;
 
+/** Recent turns kept in the prompt — an unbounded history blows the context. */
+const MAX_TURNS = 12;
+
+/** Clip lesson context so one huge console dump can't blow the context window. */
+function clip(text: string, max: number): string {
+  return text.length <= max ? text : text.slice(0, max) + "\n… (truncated)";
+}
+
 export default function SocraticTutor({
   code,
   checkExpr,
@@ -44,13 +52,14 @@ export default function SocraticTutor({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Listen for settings changes
-  useCallback(() => {
-    const unsub = subscribeAiSettings(() => {
+  // Re-render when a provider is added or removed in Settings. This has to run
+  // in an effect: invoking the hook's return value inline ran on EVERY render
+  // and leaked a subscription each time.
+  useEffect(() => {
+    return subscribeAiSettings(() => {
       setSettingsReady(!!loadAiSettings().provider);
     });
-    return unsub;
-  }, [])();
+  }, []);
 
   const askTutor = useCallback(
     async (studentMessage: string) => {
@@ -60,12 +69,16 @@ export default function SocraticTutor({
       const name = settings.tutorName || "student";
       const systemMsg: TutorMessage = {
         role: "system",
-        content: `${SOCRATIC_SYSTEM}\n\nContext: The student${name ? ` (${name})` : ""} is working${topic ? ` on "${topic}"` : ""}.\n\nTheir current code:\n\`\`\`javascript\n${code}\n\`\`\`\n\n${checkExpr ? `Exercise goal (check expression): ${checkExpr}` : ""}\n${checkHint ? `Exercise hint: ${checkHint}` : ""}\n${error ? `Last error: ${error}` : ""}\n${logs?.length ? `Console output:\n${logs.join("\n")}` : ""}`,
+        content: `${SOCRATIC_SYSTEM}\n\nContext: The student${name ? ` (${name})` : ""} is working${topic ? ` on "${topic}"` : ""}.\n\nTheir current code:\n\`\`\`javascript\n${clip(code, 2000)}\n\`\`\`\n\n${checkExpr ? `Exercise goal (check expression): ${checkExpr}` : ""}\n${checkHint ? `Exercise hint: ${checkHint}` : ""}\n${error ? `Last error: ${error}` : ""}\n${logs?.length ? `Console output:\n${clip(logs.slice(-40).join("\n"), 1500)}` : ""}`,
       };
 
+      // Sliding window: only the most recent turns go to the provider.
+      const recent = messages
+        .filter((m) => m.role !== "system")
+        .slice(-MAX_TURNS);
       const newMessages: TutorMessage[] = [
         systemMsg,
-        ...messages.filter((m) => m.role !== "system"),
+        ...recent,
         { role: "user", content: studentMessage },
       ];
 
