@@ -419,9 +419,12 @@ console.log(nextCount()); // 3
 // TODO: fix the loop-scope bug — this prints 3, 3, 3
 const printDelayed = [];
 for (var i = 0; i < 3; i++) {
-  printDelayed.push(i);
+  printDelayed.push(() => i); // each callback reads the SAME var i
 }
-console.log("loop captured:", printDelayed.join(","));`,
+console.log(
+  "loop captured:",
+  printDelayed.map((capture) => capture()).join(",")
+);`,
       check: {
         expr: "output.includes('1') && output.includes('3') && output.includes('loop captured: 0,1,2')",
         hint: "Keep the counter working, and change var i to let i so each iteration keeps its own value.",
@@ -843,13 +846,14 @@ console.log("5. (still free to do other work!)");
 // TODO: run two brews in PARALLEL with Promise.all
 // and log how the total wait is one brew, not two
 async function main() {
-  const teas = await Promise.all([brewTea(), brewTea()]);
-  console.log("batch done:", teas.join(" + "));
+  const first = await brewTea();
+  const second = await brewTea();
+  console.log("batch done:", first + " + " + second);
 }
 main();`,
       check: {
-        expr: "output.includes('batch done') && output.includes('order placed')",
-        hint: "Keep both the sequential demo and the Promise.all batch — you should see 'order placed' before 'batch done'.",
+        expr: "output.includes('order placed') && output.includes('batch done') && output.indexOf('2. water boiled') > output.lastIndexOf('1. kettle on')",
+        hint: "Both brews must be in flight at once: with Promise.all the second '1. kettle on' still lands before the first '2. water boiled'. Awaiting them one after the other serialises the waits — the second brew only starts once the first is finished.",
       },
       predict: [
         {
