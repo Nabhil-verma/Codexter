@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { tracks, findLesson, lessonKey, totalLessonCount } from "../src/data";
-import { runUserCode, evaluateCheck } from "../src/lib/runner";
+import { runUserCode } from "../src/lib/runner";
 
 const allLessons = tracks.flatMap((t) =>
   t.lessons.map((l) => ({ track: t, lesson: l }))

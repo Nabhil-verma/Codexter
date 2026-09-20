@@ -31,6 +31,7 @@ const PERKS = [
 const APP_PREFIXES = [
   "/learn",
   "/playground",
+  "/projects",
   "/portfolio",
   "/certificate",
   "/leaderboard",
