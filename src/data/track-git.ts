@@ -192,6 +192,18 @@ const timeout = 60;        // incoming branch's version
       id: "git-workflow-lab",
       title: "The Git Workflow Lab",
       minutes: 12,
+      sort: {
+        prompt: "Order the feature workflow, first command to last.",
+        items: [
+          "git switch -c feature/login — branch off main",
+          "git add . — stage the working changes",
+          "git commit -m 'feat: login' — snapshot the work",
+          "git push -u origin feature/login — publish the branch",
+          "open a pull request for review",
+        ],
+        explanation:
+          "Branch before you edit, stage before you commit, push before you open the PR. Skipping the branch is how work ends up on main by accident.",
+      },
       body: `Time to drive a repo yourself. Below is a **simulated terminal** with a real workflow waiting: a modified file, a feature to branch, a merge that will conflict, and a push.
 
 The full cycle you're about to run, in order:

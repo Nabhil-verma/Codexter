@@ -122,6 +122,19 @@ print(add_item(2))`,
       id: "python-oop",
       title: "OOP: Classes, Inheritance & Exceptions",
       minutes: 10,
+      sort: {
+        prompt: "Arrange the exception-handling block so it runs correctly.",
+        items: [
+          "try:",
+          "    total = int(user_input)",
+          "except ValueError as err:",
+          "    print('not a number:', err)",
+          "finally:",
+          "    print('attempt finished')",
+        ],
+        explanation:
+          "try holds the risky line, except catches the specific failure it can handle, and finally always runs — even when the call returned or raised.",
+      },
       reading: true,
       body: `Classes bundle **data + behavior**:
 

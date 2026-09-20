@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import Nav from "../components/Nav";
+import { PageFade, Reveal } from "../components/motion";
 import LessonBody from "../components/LessonBody";
 import Playground from "../components/Playground";
 import CssSandbox from "../components/CssSandbox";
@@ -9,6 +11,8 @@ import PredictOutput from "../components/PredictOutput";
 import Quiz from "../components/Quiz";
 import SolutionFeed from "../components/SolutionFeed";
 import SocraticTutor from "../components/SocraticTutor";
+import RapidFire from "../components/gamification/RapidFire";
+import DragSort from "../components/gamification/DragSort";
 import {
   findTrack,
   findLesson,
@@ -25,10 +29,12 @@ export default function Lesson() {
   const { record } = useProgress();
   const progressState = useProgressState();
   const [exerciseDone, setExerciseDone] = useState(false);
+  const [rapid, setRapid] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     setExerciseDone(false);
+    setRapid(false);
   }, [trackId, lessonId]);
 
   if (!track || !lesson) {
@@ -53,6 +59,28 @@ export default function Lesson() {
   const next = track.lessons[idx + 1];
   const quiz: QuizQuestion[] = lesson.quiz;
 
+  /*
+   * Section numerals are derived from which parts actually render, so adding
+   * or removing an interactive block never leaves duplicate or skipped steps.
+   */
+  const ROMAN = ["Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ"];
+  const runKind = lesson.starter
+    ? "Run"
+    : lesson.sandbox
+      ? "Play"
+      : lesson.gitSim
+        ? "Do"
+        : null;
+  const STEPS = [
+    "Read",
+    ...(runKind ? [runKind] : []),
+    ...(lesson.sort ? ["Sequence"] : []),
+    "Prove it",
+    ...(lesson.starter ? ["Solutions"] : []),
+  ];
+  const step = (name: string) =>
+    ROMAN[STEPS.indexOf(name)] ?? ROMAN[0];
+
   const handleScore = (score: number) => {
     if (score >= 1) record(key, 1, todayKey());
   };
@@ -62,17 +90,33 @@ export default function Lesson() {
   return (
     <div className="min-h-screen">
       <Nav />
+      <PageFade>
       <main className="mx-auto max-w-3xl px-4 py-12">
-        <p className="font-mono text-xs text-ink-600">
+        <motion.p
+          className="font-mono text-xs text-ink-600"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
           <Link to="/learn" className="hover:text-gold-600">
             lessons
           </Link>{" "}
           / {track.title}
-        </p>
-        <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink-950">
+        </motion.p>
+        <motion.h1
+          className="mt-3 font-display text-4xl font-semibold tracking-tight text-ink-950"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        >
           {lesson.title}
-        </h1>
-        <p className="mt-2 flex items-center gap-3 font-mono text-xs text-ink-600">
+        </motion.h1>
+        <motion.p
+          className="mt-2 flex items-center gap-3 font-mono text-xs text-ink-600"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.25 }}
+        >
           <span>{lesson.minutes} min</span>
           <span className="text-gold-500">·</span>
           <span>
@@ -90,49 +134,73 @@ export default function Lesson() {
           ) : (
             <span>in progress</span>
           )}
-        </p>
+        </motion.p>
 
         {/* 1. Read */}
-        <section className="mt-12">
-          <h2 className="eyebrow mb-4">Ⅰ · Read</h2>
-          <LessonBody lesson={lesson} />
-        </section>
+        <Reveal className="mt-12">
+          <section>
+            <h2 className="eyebrow mb-4">{step("Read")} · Read</h2>
+            <LessonBody lesson={lesson} />
+          </section>
+        </Reveal>
 
         {/* 2. Run — code playground or visual sandbox */}
         {lesson.starter && (
-          <section className="mt-14">
-            <h2 className="eyebrow mb-4">Ⅱ · Run</h2>
-            <Playground
-              starter={lesson.starter}
-              check={lesson.check}
-              onPass={() => setExerciseDone(true)}
-            />
-          </section>
+          <Reveal className="mt-14">
+            <section>
+              <h2 className="eyebrow mb-4">{step("Run")} · Run</h2>
+              <Playground
+                starter={lesson.starter}
+                check={lesson.check}
+                onPass={() => setExerciseDone(true)}
+              />
+            </section>
+          </Reveal>
         )}
         {lesson.sandbox && (
-          <section className="mt-14">
-            <h2 className="eyebrow mb-4">Ⅱ · Play</h2>
-            <CssSandbox onPass={() => setExerciseDone(true)} />
-          </section>
+          <Reveal className="mt-14">
+            <section>
+              <h2 className="eyebrow mb-4">{step("Play")} · Play</h2>
+              <CssSandbox onPass={() => setExerciseDone(true)} />
+            </section>
+          </Reveal>
         )}
         {lesson.gitSim && (
-          <section className="mt-14">
-            <h2 className="eyebrow mb-4">Ⅱ · Do</h2>
-            <GitSim objectives={lesson.gitSim} />
-          </section>
+          <Reveal className="mt-14">
+            <section>
+              <h2 className="eyebrow mb-4">{step("Do")} · Do</h2>
+              <GitSim objectives={lesson.gitSim} />
+            </section>
+          </Reveal>
+        )}
+
+        {/* 2.25 Sequence — drag the steps into the right order */}
+        {lesson.sort && (
+          <Reveal className="mt-14">
+            <section>
+              <h2 className="eyebrow mb-4">{step("Sequence")} · Sequence</h2>
+              <DragSort
+                prompt={lesson.sort.prompt}
+                items={lesson.sort.items}
+                explanation={lesson.sort.explanation}
+              />
+            </section>
+          </Reveal>
         )}
 
         {/* 2.5 AI Tutor — guided help (optional, BYOK) */}
         {lesson.starter && (
-          <section className="mt-14">
-            <h2 className="eyebrow mb-4">Ask the Tutor</h2>
-            <SocraticTutor
-              code={lesson.starter}
-              checkExpr={lesson.check?.expr}
-              checkHint={lesson.check?.hint}
-              topic={lesson.title}
-            />
-          </section>
+          <Reveal className="mt-14">
+            <section>
+              <h2 className="eyebrow mb-4">Ask the Tutor</h2>
+              <SocraticTutor
+                code={lesson.starter}
+                checkExpr={lesson.check?.expr}
+                checkHint={lesson.check?.hint}
+                topic={lesson.title}
+              />
+            </section>
+          </Reveal>
         )}
 
         {/* 2.6 Predict — mental execution practice */}
@@ -140,20 +208,67 @@ export default function Lesson() {
           <PredictOutput steps={lesson.predict} />
         )}
 
-        {/* 3. Prove it */}
-        <section className="mt-14">
-          <h2 className="eyebrow mb-4">
-            {lesson.starter || lesson.sandbox || lesson.gitSim ? "Ⅲ" : "Ⅱ"} · Prove it
-          </h2>
-          <Quiz questions={quiz} onScore={handleScore} />
-        </section>
+        {/* 3. Prove it — standard quiz or the timed rapid-fire gauntlet */}
+        <Reveal className="mt-14">
+          <section>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="eyebrow">{step("Prove it")} · Prove it</h2>
+              <div
+                role="tablist"
+                aria-label="Quiz mode"
+                className="relative flex rounded-full border border-paper-200/70 bg-paper-50/60 p-1"
+              >
+                {[
+                  { id: false, label: "Standard" },
+                  { id: true, label: "⚡ Rapid fire" },
+                ].map((m) => (
+                  <button
+                    key={String(m.id)}
+                    type="button"
+                    role="tab"
+                    aria-selected={rapid === m.id}
+                    onClick={() => setRapid(m.id)}
+                    className={
+                      "relative rounded-full px-3.5 py-1.5 text-xs font-semibold transition " +
+                      (rapid === m.id
+                        ? "text-paper-50"
+                        : "text-ink-600 hover:text-ink-950")
+                    }
+                  >
+                    {rapid === m.id && (
+                      <motion.span
+                        layoutId="quiz-mode"
+                        className="absolute inset-0 rounded-full bg-ink-950"
+                        transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                      />
+                    )}
+                    <span className="relative z-10">{m.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {rapid ? (
+              <RapidFire questions={quiz} onScore={handleScore} />
+            ) : (
+              <Quiz questions={quiz} onScore={handleScore} />
+            )}
+            {rapid && (
+              <p className="mt-3 font-mono text-[11px] text-ink-500">
+                10 seconds a question · a combo for consecutive hits · 100% to
+                complete the lesson
+              </p>
+            )}
+          </section>
+        </Reveal>
 
         {/* 4. Community solutions (locked until exercise pass) */}
         {lesson.starter && (
-          <section className="mt-14">
-            <h2 className="eyebrow mb-4">Ⅳ · Solutions</h2>
-            <SolutionFeed lessonKey={key} passed={exerciseDone || completed} />
-          </section>
+          <Reveal className="mt-14">
+            <section>
+              <h2 className="eyebrow mb-4">{step("Solutions")} · Solutions</h2>
+              <SolutionFeed lessonKey={key} passed={exerciseDone || completed} />
+            </section>
+          </Reveal>
         )}
 
         {/* Prev / next */}
@@ -182,11 +297,16 @@ export default function Lesson() {
           )}
         </nav>
         {exerciseDone && (
-          <p className="mt-6 text-center font-mono text-xs text-gold-600">
+          <motion.p
+            className="mt-6 text-center font-mono text-xs text-gold-600"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
             exercise passed — finish the quiz with 100% to complete the lesson
-          </p>
+          </motion.p>
         )}
       </main>
+      </PageFade>
     </div>
   );
 }

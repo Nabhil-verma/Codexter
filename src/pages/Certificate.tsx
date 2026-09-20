@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { motion } from "framer-motion";
 import Nav from "../components/Nav";
+import { Orb, Tilt } from "../components/motion";
 import { tracks, lessonKey } from "../data";
 import { scoreFor, useProgressState } from "../lib/progress";
 import { useAccount } from "../AccountProvider";
@@ -67,7 +69,11 @@ export default function Certificate() {
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="mx-auto max-w-3xl px-4 py-12">
+      <main className="relative mx-auto max-w-3xl px-4 py-12">
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          <Orb className="left-[10%] top-[5%] bg-gold-400/8" size={200} duration={13} />
+        </div>
+        <div className="relative z-10">
         {!complete ? (
           <div className="card mx-auto max-w-xl p-10 text-center">
             <p className="eyebrow">Not yet</p>
@@ -88,7 +94,14 @@ export default function Certificate() {
           </div>
         ) : (
           <>
-            {/* The printable certificate */}
+            {/* The printable certificate — 3D entrance + tilt on hover */}
+            <motion.div
+              initial={{ opacity: 0, y: 48, rotateX: 10 }}
+              animate={{ opacity: 1, y: 0, rotateX: 0 }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              style={{ transformPerspective: 1200 }}
+            >
+            <Tilt max={4} scale={1.005}>
             <div className="certificate-sheet card relative overflow-hidden border-gold-400/60 p-10 text-center shadow-lift sm:p-14">
               <div className="pointer-events-none absolute inset-3 rounded-2xl border border-gold-400/40" />
               <p className="eyebrow">Certificate of completion</p>
@@ -130,8 +143,15 @@ export default function Certificate() {
                 </div>
               </div>
             </div>
+            </Tilt>
+            </motion.div>
 
-            <div className="mx-auto mt-6 flex max-w-xl flex-wrap items-center justify-center gap-3">
+            <motion.div
+              className="mx-auto mt-6 flex max-w-xl flex-wrap items-center justify-center gap-3"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -148,12 +168,13 @@ export default function Certificate() {
               <Link to="/learn" className="btn-ghost">
                 Back to lessons
               </Link>
-            </div>
+            </motion.div>
             <p className="mt-4 text-center font-mono text-xs text-ink-600">
               Printed copies include today's date. Your name is saved on this device.
             </p>
           </>
         )}
+        </div>
       </main>
     </div>
   );

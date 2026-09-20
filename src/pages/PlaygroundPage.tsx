@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import Nav from "../components/Nav";
+import { PageFade, Reveal, Tilt } from "../components/motion";
 import Playground from "../components/Playground";
 import BugHunt, { BUG_HUNTS } from "../components/BugHunt";
 import LocalModeGuide from "../components/LocalModeGuide";
@@ -119,41 +121,55 @@ export default function PlaygroundPage() {
   return (
     <div className="min-h-screen">
       <Nav />
+      <PageFade>
       <main className="mx-auto max-w-4xl px-4 py-12">
-        <p className="eyebrow">Free playground</p>
-        <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight text-ink-950">
-          Break things safely
-        </h1>
-        <p className="mt-3 max-w-xl text-ink-600">
-          No lesson, no goals — just a console. Your code autosaves in this
-          browser. Timers, promises, and the mock API server all work here.
-        </p>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <p className="eyebrow">Free playground</p>
+          <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight text-ink-950">
+            Break things <span className="gradient-text">safely</span>
+          </h1>
+          <p className="mt-3 max-w-xl text-ink-600">
+            No lesson, no goals — just a console. Your code autosaves in this
+            browser. Timers, promises, and the mock API server all work here.
+          </p>
+        </motion.div>
 
         {/* Snippet library */}
         <div className="mt-8 flex flex-wrap gap-1.5">
           {snippets.map((s, i) => (
-            <button
+            <motion.button
               key={s.name}
               onClick={() => loadSnippet(i)}
               title={s.blurb}
               className={
                 "rounded-full border px-3.5 py-1.5 font-mono text-xs transition " +
                 (activeSnippet === i
-                  ? "border-gold-400 bg-gold-400/15 text-gold-700"
+                  ? "border-gold-400 bg-gold-400/15 text-gold-700 shadow-glow"
                   : "border-paper-200 text-ink-600 hover:border-gold-400/60 hover:text-ink-900")
               }
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05, type: "spring", stiffness: 320, damping: 22 }}
+              whileHover={{ scale: 1.06 }}
+              whileTap={{ scale: 0.94 }}
             >
               {s.name}
-            </button>
+            </motion.button>
           ))}
         </div>
 
-        <div className="mt-6">
-          <Playground
-            key={activeSnippet}
-            starter={code}
-            onCodeChange={setCode}
-          />
+        <div className="mt-6" style={{ perspective: "1200px" }}>
+          <Tilt max={3} scale={1.005}>
+            <Playground
+              key={activeSnippet}
+              starter={code}
+              onCodeChange={setCode}
+            />
+          </Tilt>
         </div>
 
         <p className="mt-6 text-center font-mono text-xs text-ink-600">
@@ -161,31 +177,44 @@ export default function PlaygroundPage() {
         </p>
 
         {/* Run locally guide */}
-        <section className="mt-16">
-          <LocalModeGuide
-            title="Playground Snippets"
-            starterCode={code}
-            deps={[""]}
-          />
-        </section>
+        <Reveal className="mt-16">
+          <section>
+            <LocalModeGuide
+              title="Playground Snippets"
+              starterCode={code}
+              deps={[""]}
+            />
+          </section>
+        </Reveal>
 
         {/* Bug Hunt challenges */}
-        <section className="mt-16">
-          <p className="eyebrow text-center">Bug Hunts</p>
-          <h2 className="mt-3 text-center font-display text-3xl font-semibold tracking-tight text-ink-950">
-            Find the bugs, fix the code
-          </h2>
-          <p className="mx-auto mt-3 max-w-md text-center text-ink-600">
-            Each challenge has broken code. Read it, find the bug, then reveal hints
-            or the full solution.
-          </p>
-          <div className="mt-10 space-y-10">
-            {BUG_HUNTS.map((bh) => (
-              <BugHunt key={bh.id} challenge={bh} />
-            ))}
-          </div>
-        </section>
+        <Reveal className="mt-16">
+          <section>
+            <p className="eyebrow text-center">Bug Hunts</p>
+            <h2 className="mt-3 text-center font-display text-3xl font-semibold tracking-tight text-ink-950">
+              Find the bugs, fix the code
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-center text-ink-600">
+              Each challenge has broken code. Read it, find the bug, then reveal hints
+              or the full solution.
+            </p>
+            <div className="mt-10 space-y-10">
+              {BUG_HUNTS.map((bh, i) => (
+                <motion.div
+                  key={bh.id}
+                  initial={{ opacity: 0, y: 32 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-60px" }}
+                  transition={{ duration: 0.55, delay: Math.min(i * 0.08, 0.24), ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <BugHunt challenge={bh} />
+                </motion.div>
+              ))}
+            </div>
+          </section>
+        </Reveal>
       </main>
+      </PageFade>
     </div>
   );
 }

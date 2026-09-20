@@ -64,8 +64,15 @@ export type TutorMessage = {
 };
 
 /**
+ * A hung provider leaves the tutor stuck on "thinking…" forever, so every
+ * request is aborted after this long and surfaces as a friendly error.
+ */
+const REQUEST_TIMEOUT_MS = 45_000;
+
+/**
  * Call the selected AI provider. Returns the assistant's response text.
- * Throws on network/auth errors so the caller can show a friendly message.
+ * Throws on network/auth/timeout errors so the caller can show a friendly
+ * message (the tutor falls back to its static hint when a call fails).
  */
 export async function callAi(
   messages: TutorMessage[],
@@ -76,13 +83,28 @@ export async function callAi(
     throw new Error("No AI provider configured. Add your API key in Settings.");
   }
 
-  if (s.provider === "gemini") {
-    return callGemini(messages, s.keys.gemini!);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    if (s.provider === "gemini") {
+      return await callGemini(messages, s.keys.gemini!, controller.signal);
+    }
+    return await callClaude(messages, s.keys.claude!, controller.signal);
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error("The AI provider didn't respond in time — try again.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  return callClaude(messages, s.keys.claude!);
 }
 
-async function callGemini(messages: TutorMessage[], apiKey: string): Promise<string> {
+async function callGemini(
+  messages: TutorMessage[],
+  apiKey: string,
+  signal: AbortSignal,
+): Promise<string> {
   // Convert our message format to Gemini's API format
   const contents = messages
     .filter((m) => m.role !== "system")
@@ -104,6 +126,7 @@ async function callGemini(messages: TutorMessage[], apiKey: string): Promise<str
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal,
     },
   );
 
@@ -118,7 +141,11 @@ async function callGemini(messages: TutorMessage[], apiKey: string): Promise<str
   return text;
 }
 
-async function callClaude(messages: TutorMessage[], apiKey: string): Promise<string> {
+async function callClaude(
+  messages: TutorMessage[],
+  apiKey: string,
+  signal: AbortSignal,
+): Promise<string> {
   const system = messages.find((m) => m.role === "system")?.content ?? "";
   const chatMessages = messages
     .filter((m) => m.role !== "system")
@@ -132,6 +159,7 @@ async function callClaude(messages: TutorMessage[], apiKey: string): Promise<str
       "anthropic-version": "2023-06-01",
       "anthropic-dangerous-direct-browser-access": "true",
     },
+    signal,
     body: JSON.stringify({
       model: "claude-sonnet-4-20250514",
       max_tokens: 1024,

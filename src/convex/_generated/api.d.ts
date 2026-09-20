@@ -9,7 +9,10 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as clans from "../clans.js";
 import type * as http from "../http.js";
+import type * as leaderboard from "../leaderboard.js";
+import type * as profiles from "../profiles.js";
 import type * as progress from "../progress.js";
 import type * as users from "../users.js";
 
@@ -21,7 +24,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  clans: typeof clans;
   http: typeof http;
+  leaderboard: typeof leaderboard;
+  profiles: typeof profiles;
   progress: typeof progress;
   users: typeof users;
 }>;

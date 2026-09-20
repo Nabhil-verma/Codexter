@@ -33,6 +33,17 @@ export type PredictStep = {
   lang?: "js" | "bash" | "python" | "sql";
 };
 
+/**
+ * A drag-to-order puzzle: the learner reconstructs a sequence (box model layers,
+ * middleware pipeline, exception block) instead of reading it.
+ */
+export type SortChallenge = {
+  prompt: string;
+  /** The correct order, top to bottom. */
+  items: string[];
+  explanation?: string;
+};
+
 /** Objective for the guided Git terminal simulator. */
 export type GitObjective = {
   /** Description shown to the learner */
@@ -57,6 +68,8 @@ export type Lesson = {
   gitSim?: GitObjective[];
   /** Predict-the-output challenges shown after the body */
   predict?: PredictStep[];
+  /** Drag-and-drop ordering challenge shown before the quiz */
+  sort?: SortChallenge;
   /** Markdown-lite: paragraphs separated by \n\n, `code`, **bold**, and ```fenced``` blocks */
   body: string;
   starter?: string;

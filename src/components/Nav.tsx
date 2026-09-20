@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { AnimatePresence, motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { useAccount } from "../AccountProvider";
 import AiSettingsModal from "./AiSettingsModal";
 import { lessonIdOf, useProgressState } from "../lib/progress";
@@ -19,15 +20,41 @@ const syncDot: Record<string, string> = {
   error: "bg-red-500",
 };
 
+const links = [
+  { to: "/learn", label: "Lessons", active: (p: string) => p.startsWith("/learn") },
+  { to: "/playground", label: "Playground", active: (p: string) => p.startsWith("/playground") },
+  {
+    to: "/leaderboard",
+    label: "Leaderboard",
+    active: (p: string) => p.startsWith("/leaderboard"),
+    hideOnMobile: true,
+  },
+  {
+    to: "/clans",
+    label: "Guilds",
+    active: (p: string) => p.startsWith("/clans"),
+    hideOnMobile: true,
+  },
+  {
+    to: "/portfolio",
+    label: "Profile",
+    active: (p: string) => p.startsWith("/portfolio"),
+    hideOnMobile: true,
+  },
+];
+
 export default function Nav() {
   const progress = useProgressState();
   const [menuOpen, setMenuOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const { user, authReady, sync, signOutUser, resetEverything } = useAccount();
 
-  // Close the account menu on outside click.
+  const { scrollY } = useScroll();
+  useMotionValueEvent(scrollY, "change", (v) => setScrolled(v > 12));
+
   useEffect(() => {
     if (!menuOpen) return;
     const onDown = (e: MouseEvent) => {
@@ -37,7 +64,6 @@ export default function Nav() {
     return () => window.removeEventListener("mousedown", onDown);
   }, [menuOpen]);
 
-  // Distinct lessons ever completed (v2 keys are date-suffixed — dedupe).
   const done = new Set(
     Object.keys(progress.completed)
       .filter((k) => (progress.completed[k] ?? 0) >= 1)
@@ -45,125 +71,139 @@ export default function Nav() {
   ).size;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-paper-200 bg-paper/85 backdrop-blur">
+    <motion.header
+      className={
+        "sticky top-0 z-40 border-b transition-all duration-300 " +
+        (scrolled
+          ? "glass border-paper-200/60 shadow-[0_8px_30px_-12px_rgba(11,11,12,0.12)]"
+          : "glass border-transparent")
+      }
+      initial={{ y: -64, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+    >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link to="/" className="group flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-950 font-mono text-xs font-bold text-gold-400 transition group-hover:shadow-glow">
+          <motion.span
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-950 font-mono text-xs font-bold text-gold-400"
+            whileHover={{
+              rotate: [0, -8, 8, 0],
+              boxShadow: "0 0 24px rgba(212,175,55,0.35)",
+            }}
+            transition={{ duration: 0.45 }}
+          >
             &lt;/&gt;
-          </span>
+          </motion.span>
           <span className="font-display text-lg font-semibold tracking-tight text-ink-950">
-            code-learn<span className="text-gold-500">.reimagined</span>
+            code-learn<span className="gradient-text">.reimagined</span>
           </span>
         </Link>
-        <nav className="flex items-center gap-2 text-sm">
-          <Link
-            to="/learn"
-            className={
-              "rounded-full px-4 py-1.5 font-medium transition " +
-              (location.pathname.startsWith("/learn")
-                ? "bg-ink-950 text-paper-50"
-                : "text-ink-700 hover:bg-paper-100")
-            }
-          >
-            Lessons
-          </Link>
-          <Link
-            to="/playground"
-            className={
-              "rounded-full px-4 py-1.5 font-medium transition " +
-              (location.pathname.startsWith("/playground")
-                ? "bg-ink-950 text-paper-50"
-                : "text-ink-700 hover:bg-paper-100")
-            }
-          >
-            Playground
-          </Link>
-          <Link
-            to="/portfolio"
-            className={
-              "hidden rounded-full px-4 py-1.5 font-medium transition sm:inline-block " +
-              (location.pathname.startsWith("/portfolio")
-                ? "bg-ink-950 text-paper-50"
-                : "text-ink-700 hover:bg-paper-100")
-            }
-          >
-            Profile
-          </Link>
-          <span className="hidden items-center gap-1.5 rounded-full border border-paper-200 px-3 py-1.5 font-mono text-xs text-ink-600 sm:flex">
-            <span className="text-gold-600">{done}</span>/{totalLessonCount} done
+
+        <nav className="flex items-center gap-1.5 text-sm">
+          {links.map((l) => (
+            <Link
+              key={l.to}
+              to={l.to}
+              className={
+                "relative rounded-full px-4 py-1.5 font-medium transition " +
+                (l.hideOnMobile ? "hidden sm:inline-block " : "") +
+                (l.active(location.pathname)
+                  ? "text-paper-50"
+                  : "text-ink-700 hover:text-ink-950")
+              }
+            >
+              {l.active(location.pathname) && (
+                <motion.span
+                  layoutId="nav-pill"
+                  className="absolute inset-0 rounded-full bg-ink-950 shadow-lift"
+                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                />
+              )}
+              <span className="relative z-10">{l.label}</span>
+            </Link>
+          ))}
+
+          <span className="hidden items-center gap-1.5 rounded-full border border-paper-200/70 bg-paper-50/50 px-3 py-1.5 font-mono text-xs text-ink-600 sm:flex">
+            <span className="gradient-text font-bold">{done}</span>/{totalLessonCount} done
           </span>
 
-          {/* AI settings gear */}
           <button
             type="button"
             onClick={() => setAiOpen(true)}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-paper-200 text-ink-600 transition hover:border-gold-400 hover:text-gold-600"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-paper-200/70 text-ink-600 transition hover:border-gold-400 hover:text-gold-600 hover:shadow-glow"
             aria-label="AI tutor settings"
           >
-            {"\u2699\uFE0F"}
+            {"⚙️"}
           </button>
 
-          {/* Account pill — always show sign-in; /auth explains gracefully
-              when cloud keys aren't configured on this deployment. */}
           {authReady &&
             (user ? (
               <div ref={menuRef} className="relative">
                 <button
                   type="button"
                   onClick={() => setMenuOpen((v) => !v)}
-                  className="flex items-center gap-2 rounded-full border border-paper-200 py-1.5 pl-3 pr-2 transition hover:border-gold-400"
+                  className="flex items-center gap-2 rounded-full border border-paper-200/70 bg-paper-50/40 py-1.5 pl-3 pr-2 transition hover:border-gold-400 hover:shadow-glow"
                   aria-label="Account menu"
                 >
                   <span className="hidden max-w-[140px] truncate text-xs font-medium text-ink-800 md:block">
                     {user.displayName || user.email}
                   </span>
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink-950 font-display text-xs font-semibold text-gold-400">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ink-950 font-display text-xs font-bold text-gold-400">
                     {(user.displayName || user.email || "?").charAt(0).toUpperCase()}
                   </span>
                 </button>
-                {menuOpen && (
-                  <div className="absolute right-0 top-11 w-64 rounded-2xl border border-paper-200 bg-paper-50 p-2 shadow-lift">
-                    <div className="px-3 pb-2 pt-2">
-                      <p className="truncate text-sm font-medium text-ink-950">
-                        {user.displayName || "Learner"}
-                      </p>
-                      <p className="truncate font-mono text-xs text-ink-600">{user.email}</p>
-                      <p className="mt-2 flex items-center gap-1.5 font-mono text-[11px] text-ink-600">
-                        <span className={"h-1.5 w-1.5 rounded-full " + syncDot[sync]} />
-                        {syncLabel[sync]}
-                      </p>
-                    </div>
-                    <div className="my-1 h-px bg-paper-200" />
-                    <button
-                      type="button"
-                      className="w-full rounded-xl px-3 py-2 text-left text-sm text-ink-800 transition hover:bg-paper-100"
-                      onClick={async () => {
-                        setMenuOpen(false);
-                        if (confirm("Reset progress everywhere? This clears your saved scores on this device and in your account.")) {
-                          await resetEverything();
-                          window.location.reload();
-                        }
-                      }}
+                <AnimatePresence>
+                  {menuOpen && (
+                    <motion.div
+                      className="glass absolute right-0 top-11 w-64 rounded-2xl border border-paper-200/60 p-2 shadow-lift"
+                      initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                      style={{ transformOrigin: "top right" }}
                     >
-                      Reset progress
-                    </button>
-                    <button
-                      type="button"
-                      className="w-full rounded-xl px-3 py-2 text-left text-sm text-ink-800 transition hover:bg-paper-100"
-                      onClick={async () => {
-                        setMenuOpen(false);
-                        await signOutUser();
-                      }}
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                )}
+                      <div className="px-3 pb-2 pt-2">
+                        <p className="truncate text-sm font-semibold text-ink-950">
+                          {user.displayName || "Learner"}
+                        </p>
+                        <p className="truncate font-mono text-xs text-ink-600">{user.email}</p>
+                        <p className="mt-2 flex items-center gap-1.5 font-mono text-[11px] text-ink-600">
+                          <span className={"h-1.5 w-1.5 rounded-full " + syncDot[sync]} />
+                          {syncLabel[sync]}
+                        </p>
+                      </div>
+                      <div className="my-1 h-px bg-paper-200/50" />
+                      <button
+                        type="button"
+                        className="w-full rounded-xl px-3 py-2 text-left text-sm text-ink-800 transition hover:bg-paper-100/80"
+                        onClick={async () => {
+                          setMenuOpen(false);
+                          if (confirm("Reset progress everywhere? This clears your saved scores on this device and in your account.")) {
+                            await resetEverything();
+                            window.location.reload();
+                          }
+                        }}
+                      >
+                        Reset progress
+                      </button>
+                      <button
+                        type="button"
+                        className="w-full rounded-xl px-3 py-2 text-left text-sm text-ink-800 transition hover:bg-paper-100/80"
+                        onClick={async () => {
+                          setMenuOpen(false);
+                          await signOutUser();
+                        }}
+                      >
+                        Sign out
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ) : (
               <Link
                 to={`/auth?returnTo=${encodeURIComponent(location.pathname + location.search)}`}
-                className="rounded-full bg-ink-950 px-4 py-1.5 font-medium text-paper-50 transition hover:shadow-glow"
+                className="btn-gold !px-4 !py-1.5 !text-sm"
               >
                 Sign in
               </Link>
@@ -171,6 +211,6 @@ export default function Nav() {
         </nav>
       </div>
       {aiOpen && <AiSettingsModal onClose={() => setAiOpen(false)} />}
-    </header>
+    </motion.header>
   );
 }

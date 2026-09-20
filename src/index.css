@@ -12,6 +12,7 @@ html {
 
 body {
   @apply bg-paper text-ink-900 font-sans antialiased;
+  perspective: 1200px;
 }
 
 ::selection {
@@ -61,17 +62,215 @@ body {
   .certificate-sheet {
     @apply bg-paper-50;
   }
+
+  /* ──3D / modern extras ── */
+
+  .glass {
+    background: rgba(250, 248, 244, 0.72);
+    backdrop-filter: blur(18px) saturate(1.4);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  }
+
+  .glass-dark {
+    background: rgba(11, 11, 12, 0.78);
+    backdrop-filter: blur(20px) saturate(1.3);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #d4af37 0%, #ecd9a0 50%, #d4af37 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 4s ease infinite;
+  }
+
+  .gradient-text-dark {
+    background: linear-gradient(135deg, #d4af37, #faf8f4, #d4af37);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 4s ease infinite;
+  }
+
+  .tilt-card {
+    transform-style: preserve-3d;
+    transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                box-shadow 0.35s ease;
+  }
+  .tilt-card:hover {
+    transform: translateY(-6px) rotateX(4deg) rotateY(-2deg);
+    box-shadow: 0 20px 50px -12px rgba(212, 175, 55, 0.15),
+                0 4px 20px rgba(11, 11, 12, 0.08);
+  }
+
+  .float-slow {
+    animation: floatSlow 6s ease-in-out infinite;
+  }
+  .float-mid {
+    animation: floatMid 5s ease-in-out infinite;
+  }
+  .float-fast {
+    animation: floatFast 4s ease-in-out infinite;
+  }
+
+  .mesh-bg {
+    background:
+      radial-gradient(ellipse 60% 50% at 15% 25%, rgba(212,175,55,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 60% at 85% 75%, rgba(236,217,160,0.1) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 50% 50%, rgba(212,175,55,0.04) 0%, transparent 60%);
+  }
+
+  /* Dark hero/section canvas (Mistral-style) */
+  .dark-canvas {
+    background:
+      radial-gradient(ellipse 80% 60% at 70% -10%, rgba(212, 175, 55, 0.14) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 10% 90%, rgba(236, 217, 160, 0.08) 0%, transparent 55%),
+      #0b0b0c;
+    color: #faf8f4;
+  }
+
+  /* Dotted 3D perspective grid floor */
+  .grid-floor {
+    background-image:
+      linear-gradient(rgba(212, 175, 55, 0.12) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(212, 175, 55, 0.12) 1px, transparent 1px);
+    background-size: 44px 44px;
+    transform: perspective(700px) rotateX(58deg) scale(1.6);
+    transform-origin: top center;
+    mask-image: linear-gradient(to bottom, black 30%, transparent 92%);
+    -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent 92%);
+  }
+
+  /* Dots backdrop for light sections */
+  .dots-bg {
+    background-image: radial-gradient(rgba(11, 11, 12, 0.07) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .dots-bg-dark {
+    background-image: radial-gradient(rgba(250, 248, 244, 0.08) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  /* Spinning conic ring (avatars, badges) */
+  .conic-ring {
+    background: conic-gradient(from 0deg, #d4af37, #0b0b0c 30%, #ecd9a0 55%, #d4af37 80%, #0b0b0c 100%);
+    animation: rotateSlow 7s linear infinite;
+  }
+
+  /* Inset border highlight for glass panels */
+  .glass-edge {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      0 24px 60px -24px rgba(11, 11, 12, 0.25);
+  }
+  .glass-edge-dark {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 24px 60px -24px rgba(0, 0, 0, 0.8);
+  }
+
+  .noise-overlay {
+    position: relative;
+  }
+  .noise-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 128px 128px;
+    pointer-events: none;
+    border-radius: inherit;
+    z-index: 0;
+  }
 }
 
-/* Certificates print cleanly — hide chrome, keep the sheet. */
+/* ── Keyframes ── */
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-14px) rotate(1.5deg); }
+  66% { transform: translateY(8px) rotate(-1deg); }
+}
+
+@keyframes floatMid {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(2deg); }
+}
+
+@keyframes floatFast {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-12px) scale(1.02); }
+}
+
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes marqueeScrollReverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.08); opacity: 0.2; }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+@keyframes rotateSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Scroll-triggered fade-in */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Marquee ── */
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marqueeScroll 40s linear infinite;
+}
+.marquee-track-reverse {
+  display: flex;
+  width: max-content;
+  animation: marqueeScrollReverse 35s linear infinite;
+}
+
+/* ── Certificates print cleanly ── */
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  .certificate-sheet,
-  .certificate-sheet * {
-    visibility: visible;
-  }
+  body * { visibility: hidden; }
+  .certificate-sheet, .certificate-sheet * { visibility: visible; }
   .certificate-sheet {
     position: absolute;
     inset: 0;
