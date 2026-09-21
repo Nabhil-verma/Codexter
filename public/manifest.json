@@ -1,6 +1,6 @@
 {
-  "name": "code-learn.reimagined",
-  "short_name": "code-learn",
+  "name": "Codexter",
+  "short_name": "Codexter",
   "description": "100% free, interactive coding lessons with a built-in editor and quizzes",
   "start_url": "/",
   "display": "standalone",
