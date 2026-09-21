@@ -3,7 +3,7 @@
 A 100% free, interactive code teacher. Thirteen tracks, 74 hands-on lessons —
 you write and run real code from minute one, in the browser, with zero signup.
 
-**Live:** [codeimagine.freebuff.app](https://codeimagine.freebuff.app)
+**Live:** [nnghedico.freebuff.app](https://nnghedico.freebuff.app)
 
 ## What's inside
 
