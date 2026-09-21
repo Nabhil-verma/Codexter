@@ -724,7 +724,7 @@ export default function Landing() {
       </section>
 
       <footer className="border-t border-paper-200 py-10 text-center font-mono text-xs text-ink-600">
-        code-learn<span className="text-gold-500">.reimagined</span> · a 100% free
+        Codexter · a 100% free
         code teacher · built with ♥ and zero dollars
       </footer>
     </div>

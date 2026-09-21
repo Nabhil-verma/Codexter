@@ -1,4 +1,4 @@
-# code-learn.reimagined
+# Codexter
 
 A 100% free, interactive code teacher. Thirteen tracks, 74 hands-on lessons —
 you write and run real code from minute one, in the browser, with zero signup.

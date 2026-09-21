@@ -95,7 +95,7 @@ export default function Nav() {
             &lt;/&gt;
           </motion.span>
           <span className="font-display text-lg font-semibold tracking-tight text-ink-950">
-            code-learn<span className="gradient-text">.reimagined</span>
+            Codexter
           </span>
         </Link>
 

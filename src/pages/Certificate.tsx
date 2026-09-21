@@ -138,7 +138,7 @@ export default function Certificate() {
                 <div className="text-center">
                   <p className="font-display text-2xl text-gold-500">✦</p>
                   <p className="mt-1 font-mono text-[11px] text-ink-600">
-                    code-learn.reimagined
+                    Codexter
                   </p>
                 </div>
               </div>
