@@ -145,9 +145,9 @@ test("slugify strips punctuation", () => {
 
 1. **Reproduce** — a bug you can't trigger, you can't verify fixed. Shrink it: smallest input, fewest steps.
 2. **Read the error** — top line = what broke; first line of *your code* in the stack = where. Errors are information, not insults.
-3. **Form a hypothesis** — "the cart total is NaN because quantity arrives as a string."
-4. **Test the hypothesis with ONE probe** — log \`typeof quantity\`, or set a breakpoint. If confirmed, fix; if not, next hypothesis.
-5. **Fix the cause, not the symptom** — \`Number(quantity)\` at the boundary, not \`Number(quantity) || 0\` at every usage.
+3. **Form a hypothesis** — "the cart total comes back as text because price arrives as a string."
+4. **Test the hypothesis with ONE probe** — log \`typeof price\`, or set a breakpoint. If confirmed, fix; if not, next hypothesis.
+5. **Fix the cause, not the symptom** — \`Number(price)\` at the boundary, not \`Number(price) || 0\` at every usage.
 6. **Prove it** — rerun the repro, then write a **regression test** so it can never return.
 
 \`\`\"
@@ -169,29 +169,29 @@ console.log({ user, cart });     // shorthand — labels included
 
 **Rubber duck it:** explaining the code aloud line-by-line forces slow, careful reading — half of all bugs surrender before the duck answers.`,
       starter: `// A real bug hunt. Predict the failure, then find it with ONE probe at a time.
+// The API is inconsistent about types — that is the bug.
 const cart = [
-  { name: "keyboard", price: "80", qty: 1 },   // price is a STRING (API bug)
-  { name: "mouse", price: 25, qty: 2 },
+  { name: "keyboard", price: "80" },   // price is a STRING
+  { name: "mouse", price: "25" },      // this one too
+  { name: "usb-c hub", price: 25 },    // but this one came back a number
 ];
 
 function total(items) {
   let sum = 0;
   for (const item of items) {
-    sum += item.price * item.qty;
+    sum += item.price;   // 0 + "80" + "25" … that concatenates, it never adds
   }
   return sum;
 }
 
-console.log("cart total:", total(cart));
+console.log("cart total:", total(cart));   // "0802525" — not 130
 console.log("— is the total wrong? probe the cause —");
 
-// Probe 1: what types are we multiplying?
-cart.forEach((i) =>
-  console.log(i.name, "price:", typeof i.price, "qty:", typeof i.qty)
-);
+// Probe 1: what type is each price, really?
+cart.forEach((i) => console.log(i.name, "price:", typeof i.price, "—", i.price));
 
-// TODO 1: fix total() so strings are coerced — at the BOUNDARY, once
-// TODO 2: add a failing test first: expect(total(cart)).toBe(130)
+// TODO 1: fix total() so every price is coerced — at the BOUNDARY, once
+// TODO 2: the failing test at the bottom must print ✓
 
 function expect(actual) {
   return {
@@ -211,7 +211,7 @@ test("cart total is 130", () => {
 });`,
       check: {
         expr: "output.includes('✓ cart total is 130')",
-        hint: "Make total() coerce: sum += Number(item.price) * item.qty. The test must print ✓.",
+        hint: "Make total() coerce at the boundary: sum += Number(item.price). The test must print ✓.",
       },
       quiz: [
         {
