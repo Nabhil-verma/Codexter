@@ -185,6 +185,12 @@ describe("curriculum integrity", () => {
  * with the comma operator, making its required `BFS from A: A B C D E`
  * unreachable no matter what the learner wrote.
  *
+ * A starter can also be pre-solved without being broken: `web/es6-syntax`
+ * graded a refactor whose output is identical either way, and
+ * `testing/debugging-method`'s "string price" bug was neutralised by `*`
+ * coercing the string for it. Both are listed for the same reason — the
+ * starter must not pass its own check.
+ *
  * Each entry is a fix a learner is expected to write, applied to the lesson's
  * live starter. Deriving it from the starter rather than freezing a copy keeps
  * the guard testing the lesson as it actually ships.
@@ -239,6 +245,26 @@ console.log("big merge ok:", JSON.stringify(mergeSort(big).slice(0, 5)));`
   console.log("batch done:", teas.join(" + "));
 }`
       ),
+  },
+  {
+    key: "web/es6-syntax",
+    // Both TODOs the lesson sets: the arrow + destructuring logger, and an
+    // independent copy — `boosted = state` only aliases, so the boost leaks
+    // back into the object it was supposed to leave untouched.
+    fix: (starter) =>
+      starter
+        .replace(
+          /\/\/ TODO 1:[\s\S]*?winners\.forEach\(\.\.\.\)/,
+          `winners.forEach(({ name, points }) => console.log(name + ": " + points));`
+        )
+        .replace("const boosted = state;", "const boosted = { ...state };"),
+  },
+  {
+    key: "testing/debugging-method",
+    // `sum` starts at 0, so `sum + "80"` concatenates into "0802525": the fix
+    // is to coerce each price at the boundary — the lesson's whole point.
+    fix: (starter) =>
+      starter.replace("sum += item.price;", "sum += Number(item.price);"),
   },
 ];
 

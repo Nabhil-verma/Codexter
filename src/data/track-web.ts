@@ -562,7 +562,7 @@ const merged = [...a, ...b];
 \`\`\`
 
 Below: refactoring practice from old-school to modern style.`,
-      starter: `// Old-school. Refactor to arrows + destructuring as you go.
+      starter: `// Old-school above, modern syntax below. Finish both TODOs.
 const users = [
   { name: "Ada", points: 90 },
   { name: "Lin", points: 75 },
@@ -576,14 +576,19 @@ for (var i = 0; i < winners.length; i++) {
 }
 console.log("winners:", names.join(", "));
 
-// TODO: one line with arrow + destructuring:
-// log each winner's name and points as "Ada: 90"
-winners.forEach(function (w) {
-  console.log(w.name + ": " + w.points);
-});`,
+// TODO 1: in ONE line — an arrow plus destructuring — log every winner, so
+// this prints "Ada: 90" and "Lin: 75". Start from winners.forEach(...)
+
+// TODO 2: boost a copy by 10 points. The last two lines must print 90 and 100,
+// which means boosted has to be a COPY, not another name for state.
+const state = { points: 90 };
+const boosted = state;
+boosted.points += 10;
+console.log("state.points:", state.points);
+console.log("boosted.points:", boosted.points);`,
       check: {
-        expr: "output.includes('winners: Ada, Lin') && output.includes('Ada: 90')",
-        hint: "Refactor to (u) => u.points >= 70 and ({ name, points }) => console.log(name + ': ' + points).",
+        expr: "output.includes('Ada: 90') && output.includes('Lin: 75') && output.includes('state.points: 90') && output.includes('boosted.points: 100')",
+        hint: "winners.forEach(({ name, points }) => console.log(name + ': ' + points)); then const boosted = { ...state }; — spread makes an independent copy.",
       },
       predict: [
         {
