@@ -21,12 +21,14 @@ import {
   subscribeProgress,
   type Progress,
 } from "./lib/progress";
+import { clanRewardXp } from "./lib/clanRewards";
 import {
   ascensionFor,
   computeStreak,
   levelFor,
   monthStartKey,
   previousDayKeys,
+  playerXp,
   todayKey,
   totalXp,
   weekStartKey,
@@ -154,7 +156,7 @@ function ConvexAccount({ children }: { children: ReactNode }) {
           .map(([key]) => lessonIdOf(key))
       ).size;
       void saveProfile({
-        xp: totalXp(p),
+        xp: playerXp(p, clanRewardXp()),
         xpWeek: xpInRange(p, weekStartKey(today), today),
         xpMonth: xpInRange(p, monthStartKey(today), today),
         level: level.level,
@@ -163,6 +165,9 @@ function ConvexAccount({ children }: { children: ReactNode }) {
         streakLongest: streak.longest,
         lastActiveDay: streak.lastDay ?? undefined,
         lessonsDone,
+        // Day key of this snapshot — the server uses it to post at most one
+        // "level-up" event per (level, day) into the guild feed.
+        sourceDay: today,
       }).catch(() => {
         // Offline or transient backend error — progress itself is unaffected.
       });

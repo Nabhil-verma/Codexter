@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useMutation, useQuery } from "convex/react";
@@ -10,21 +10,17 @@ import {
   PanelFallback,
   RankFrame,
 } from "../components/gamification/Pieces";
+import { Crown, ShieldHalf, UserCog } from "lucide-react";
 import { GUILD_TIERS, guildTierFor } from "../lib/guild";
+import { friendly } from "../lib/friendlyError";
 import type { ClanView } from "../convex/clans";
+import ClanQuestPanel from "../components/clan/ClanQuestPanel";
+import ClanFeed from "../components/clan/ClanFeed";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 const inputCls =
   "w-full rounded-xl border border-paper-300 bg-paper-50 px-4 py-2.5 text-sm text-ink-950 outline-none transition placeholder:text-ink-400 focus:border-gold-400 focus:ring-2 focus:ring-gold-400/25";
-
-/** Convex wraps thrown messages; surface just the human part. */
-function friendly(err: unknown): string {
-  const raw = err instanceof Error ? err.message : String(err ?? "");
-  const m = raw.match(/Uncaught Error:\s*([^\n]+)/);
-  const text = (m ? m[1] : raw.split("\n").pop() ?? raw).trim();
-  return text || "Something went wrong — try again.";
-}
 
 /** Shape returned by `clans.list` / `clans.mine`, defined by the backend. */
 type Guild = ClanView;
@@ -81,11 +77,66 @@ function GuildSection() {
   return mine ? <MyGuild guild={mine} /> : <CreateGuild />;
 }
 
-function MyGuild({ guild }: { guild: Guild }) {
+/** Crown for the founder, shield for an officer, nothing for members. */
+function RoleChip({ role }: { role: Guild["members"][number]["role"] }) {
+  if (role === "owner") {
+    return (
+      <span
+        title="Founder"
+        className="inline-flex items-center gap-1 rounded-full border border-gold-400/50 bg-gold-400/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-gold-300"
+      >
+        <Crown className="h-3 w-3" aria-hidden />
+        founder
+      </span>
+    );
+  }
+  if (role === "officer") {
+    return (
+      <span
+        title="Officer"
+        className="inline-flex items-center gap-1 rounded-full border border-sky-400/50 bg-sky-400/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-sky-300"
+      >
+        <ShieldHalf className="h-3 w-3" aria-hidden />
+        officer
+      </span>
+    );
+  }
+  return null;
+}
+
+/** Exported for the roster tests — the page renders it for the caller's guild. */
+export function MyGuild({ guild }: { guild: Guild }) {
   const leave = useMutation(api.clans.leave);
+  const setRole = useMutation(api.clans.setRole);
+  const kick = useMutation(api.clans.kick);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [confirmKickFor, setConfirmKickFor] = useState<string | null>(null);
+  const [menuBusy, setMenuBusy] = useState(false);
+  const confirmTimer = useRef<number | null>(null);
   const tier = guildTierFor(guild.totalXp);
+
+  const runMenuAction = async (fn: () => Promise<unknown>) => {
+    setMenuBusy(true);
+    setError(null);
+    try {
+      await fn();
+      setMenuFor(null);
+      setConfirmKickFor(null);
+    } catch (err) {
+      setError(friendly(err));
+    } finally {
+      setMenuBusy(false);
+    }
+  };
+
+  // Two-step kick: the first tap primes the row for 3 seconds.
+  const primeKick = (userId: string) => {
+    setConfirmKickFor(userId);
+    if (confirmTimer.current) window.clearTimeout(confirmTimer.current);
+    confirmTimer.current = window.setTimeout(() => setConfirmKickFor(null), 3000);
+  };
 
   return (
     <Reveal className="mt-8">
@@ -149,43 +200,134 @@ function MyGuild({ guild }: { guild: Guild }) {
           </p>
         </div>
 
-        {/* Members */}
-        <div className="relative mt-6">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-gold-400">
-            roster · {guild.memberCount}
-          </p>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-            {guild.members.map((m, i) => (
-              <motion.li
-                key={m.name + i}
-                className={
-                  "flex items-center gap-3 rounded-xl border px-3 py-2 " +
-                  (m.isMe
-                    ? "border-gold-400/60 bg-gold-400/10"
-                    : "border-paper-100/15 bg-paper-100/5")
-                }
-                initial={{ opacity: 0, y: 12 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.05, ease: EASE }}
-              >
-                <RankFrame name={m.name} level={m.level} ascension={m.ascension} size="sm" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-display text-sm font-semibold text-paper-50">
-                    {m.name}
-                    {m.isMe && (
-                      <span className="ml-2 font-mono text-[9px] uppercase tracking-widest text-gold-300">
-                        you
+        {/* Co-op clan quest — pooled goal bar + contributors + claim */}
+        <ClanQuestPanel />
+
+        {/* Members + live chronicle */}
+        <div className="relative mt-6 grid gap-4 lg:grid-cols-[1fr_280px]">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-gold-400">
+              roster · {guild.memberCount}
+            </p>
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+              {guild.members.map((m, i) => {
+                const menuOpen = menuFor === m.userId;
+                const kickPrimed = confirmKickFor === m.userId;
+                const canPromote = guild.isOwner && !m.isMe;
+                const canKickTarget =
+                  !m.isMe &&
+                  (guild.isOwner || (guild.myRole === "officer" && m.role === "member"));
+                return (
+                  <motion.li
+                    key={m.userId}
+                    className={
+                      "flex items-center gap-3 rounded-xl border px-3 py-2 " +
+                      (m.isMe
+                        ? "border-gold-400/60 bg-gold-400/10"
+                        : "border-paper-100/15 bg-paper-100/5")
+                    }
+                    initial={{ opacity: 0, y: 12 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.4, delay: i * 0.05, ease: EASE }}
+                  >
+                    <RankFrame name={m.name} level={m.level} ascension={m.ascension} size="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <span className="truncate font-display text-sm font-semibold text-paper-50">
+                          {m.name}
+                        </span>
+                        {m.isMe && (
+                          <span className="font-mono text-[9px] uppercase tracking-widest text-gold-300">
+                            you
+                          </span>
+                        )}
+                        <RoleChip role={m.role} />
+                      </span>
+                      <span className="block font-mono text-[10px] text-paper-300/70">
+                        lv {m.level} · {m.xp.toLocaleString()} xp
+                      </span>
+                    </span>
+
+                    {(canPromote || canKickTarget) && !menuOpen && (
+                      <button
+                        type="button"
+                        aria-label={"Manage " + m.name}
+                        onClick={() => {
+                          setMenuFor(m.userId);
+                          setConfirmKickFor(null);
+                        }}
+                        className="shrink-0 rounded-lg border border-paper-100/20 p-1.5 text-paper-300/70 transition hover:border-gold-400/60 hover:text-gold-300"
+                      >
+                        <UserCog className="h-4 w-4" aria-hidden />
+                      </button>
+                    )}
+
+                    {menuOpen && (
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {canPromote && m.role !== "officer" && (
+                          <button
+                            type="button"
+                            disabled={menuBusy}
+                            onClick={() =>
+                              runMenuAction(() => setRole({ userId: m.userId, officer: true }))
+                            }
+                            className="rounded-lg border border-sky-400/50 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-sky-300 transition hover:bg-sky-400/10 disabled:opacity-50"
+                          >
+                            promote
+                          </button>
+                        )}
+                        {canPromote && m.role === "officer" && (
+                          <button
+                            type="button"
+                            disabled={menuBusy}
+                            onClick={() =>
+                              runMenuAction(() => setRole({ userId: m.userId, officer: false }))
+                            }
+                            className="rounded-lg border border-paper-100/20 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-paper-300 transition hover:bg-paper-100/5 disabled:opacity-50"
+                          >
+                            demote
+                          </button>
+                        )}
+                        {canKickTarget && (
+                          <button
+                            type="button"
+                            disabled={menuBusy}
+                            onClick={() =>
+                              kickPrimed
+                                ? runMenuAction(() => kick({ userId: m.userId }))
+                                : primeKick(m.userId)
+                            }
+                            className={
+                              "rounded-lg border px-2 py-1 font-mono text-[10px] uppercase tracking-widest transition disabled:opacity-50 " +
+                              (kickPrimed
+                                ? "border-red-400 bg-red-400/15 text-red-300"
+                                : "border-red-400/40 text-red-300/80 hover:bg-red-400/10")
+                            }
+                          >
+                            {kickPrimed ? "sure?" : "kick"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          aria-label="Close menu"
+                          disabled={menuBusy}
+                          onClick={() => {
+                            setMenuFor(null);
+                            setConfirmKickFor(null);
+                          }}
+                          className="font-mono text-[10px] uppercase tracking-widest text-paper-300/60 transition hover:text-paper-100"
+                        >
+                          ✕
+                        </button>
                       </span>
                     )}
-                  </span>
-                  <span className="block font-mono text-[10px] text-paper-300/70">
-                    lv {m.level} · {m.xp.toLocaleString()} xp
-                  </span>
-                </span>
-              </motion.li>
-            ))}
-          </ul>
+                  </motion.li>
+                );
+              })}
+            </ul>
+          </div>
+          <ClanFeed />
         </div>
 
         {error && (

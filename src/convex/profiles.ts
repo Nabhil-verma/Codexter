@@ -33,6 +33,8 @@ export const sync = mutation({
     streakLongest: v.number(),
     lastActiveDay: v.optional(v.string()),
     lessonsDone: v.number(),
+    /** day key of the progress snapshot that produced this push (dedupes level-up events) */
+    sourceDay: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -45,6 +47,10 @@ export const sync = mutation({
       shortString(user?.email, MAX_NAME) ||
       "Learner";
 
+    // NOTE: `memberRole` is deliberately absent from this payload. Officer
+    // status is granted server-side by `clans.setRole`; letting a progress
+    // push carry the field would either clear a real officer (when omitted)
+    // or let any client mint one (when spoofed), so sync never touches it.
     const next = {
       name,
       xp: count(args.xp),
@@ -69,6 +75,28 @@ export const sync = mutation({
       // an empty board is worse than a small one.
       if (next.xp === 0 && next.lessonsDone === 0) return null;
       return await ctx.db.insert("profiles", { userId, ...next });
+    }
+
+    // A level-up is a social moment — the guild feed gets it. Level can move
+    // down after a reset, so compare against the SERVER's stored level: the
+    // client's XP is already the union of all devices and can't say whether
+    // this is a first ascent or a re-earn. Fires at most once per
+    // (source level, source day): a second push for the same day/level is
+    // either unchanged (skipped below) or a higher level with a new day.
+    if (
+      next.level > existing.level &&
+      next.xp >= existing.xp &&
+      args.sourceDay !== undefined &&
+      args.sourceDay !== existing.lastActiveDay &&
+      existing.clanId
+    ) {
+      await ctx.db.insert("clanEvents", {
+        clanId: existing.clanId,
+        actorId: userId,
+        kind: "level-up",
+        text: name + " reached level " + next.level,
+        createdAt: Date.now(),
+      });
     }
 
     // Skip the write when nothing moved (progress events fire often).
@@ -105,6 +133,13 @@ export const me = query({
       .unique();
     if (!profile) return null;
     const clan = profile.clanId ? await ctx.db.get(profile.clanId) : null;
+    const role = clan
+      ? clan.ownerId === userId
+        ? ("owner" as const)
+        : profile.memberRole === "officer"
+          ? ("officer" as const)
+          : ("member" as const)
+      : ("none" as const);
     return {
       name: profile.name,
       xp: profile.xp,
@@ -117,6 +152,7 @@ export const me = query({
       streakLongest: profile.streakLongest,
       lessonsDone: profile.lessonsDone,
       clan: clan ? { id: clan._id, name: clan.name, tag: clan.tag } : null,
+      clanRole: role,
     };
   },
 });
