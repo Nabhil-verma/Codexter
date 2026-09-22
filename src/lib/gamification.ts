@@ -182,6 +182,16 @@ export function bonusXpTotal(progress: Progress): number {
   return totalXp(progress) - lessonXpTotal(progress);
 }
 
+/**
+ * The total the public player card publishes: everything the progress map
+ * earns, plus XP banked outside it (shipped milestones, clan-quest rewards).
+ * The leaderboard ranks on this number, so it lives behind one helper instead
+ * of being re-derived at every call site.
+ */
+export function playerXp(progress: Progress, bonusXp = 0): number {
+  return totalXp(progress) + Math.max(0, Math.floor(bonusXp));
+}
+
 /* ------------------ Daily quest board (today's view) ------------------ */
 
 export type QuestView = {
@@ -496,7 +506,7 @@ const ALL_BADGES: Badge[] = [
 /** Context the progress map can't express on its own. */
 export type BadgeContext = {
   level?: number;
-  clanRole?: "none" | "member" | "owner";
+  clanRole?: "none" | "member" | "officer" | "owner";
 };
 
 export function allBadges(): Badge[] {

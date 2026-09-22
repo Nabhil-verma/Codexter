@@ -17,7 +17,8 @@ function Bridge() {
 
   useEffect(() => {
     if (profile === undefined || clan === undefined) return;
-    setClanRole(!clan ? "none" : clan.isOwner ? "owner" : "member");
+    // myRole is owner/officer/member on the ClanView; "none" when clanless.
+    setClanRole(!clan ? "none" : clan.myRole);
   }, [profile, clan]);
 
   return null;

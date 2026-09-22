@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
    component feeds this store and everyone else just reads it.
    ═══════════════════════════════════════════════════════════════ */
 
-export type ClanRole = "none" | "member" | "owner";
+export type ClanRole = "none" | "member" | "officer" | "owner";
 
 let current: ClanRole = "none";
 const listeners = new Set<(role: ClanRole) => void>();

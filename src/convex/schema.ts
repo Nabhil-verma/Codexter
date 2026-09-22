@@ -36,6 +36,7 @@ export default defineSchema({
     streakCurrent: v.number(),
     streakLongest: v.number(),
     lastActiveDay: v.optional(v.string()),
+    memberRole: v.optional(v.literal("officer")),
     lessonsDone: v.number(),
     clanId: v.optional(v.id("clans")),
     updatedAt: v.number(),
@@ -58,4 +59,68 @@ export default defineSchema({
     .index("by_name", ["name"])
     .index("by_tag", ["tag"])
     .index("by_owner", ["ownerId"]),
+
+  /**
+   * One co-op quest per clan per ISO week. Created lazily by
+   * `clans.ensureActiveQuest` (queries can't write), rotated by week key.
+   */
+  clanQuests: defineTable({
+    clanId: v.id("clans"),
+    /** ISO week key, e.g. "2026-W39" — one row per (clan, week) */
+    weekKey: v.string(),
+    title: v.string(),
+    detail: v.string(),
+    metric: v.union(v.literal("lessons"), v.literal("xp"), v.literal("flawless")),
+    /** pooled guild-wide goal (scaled to roster size at creation) */
+    target: v.number(),
+    /** total reward XP, split evenly across contributors on completion */
+    rewardXp: v.number(),
+    status: v.union(v.literal("active"), v.literal("complete")),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    /** set when the quest completes — the "celebrated" flag lives server-side */
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_clan_week", ["clanId", "weekKey"]),
+
+  /** Per-member, per-quest contribution. Merged max, like progress scores. */
+  clanQuestProgress: defineTable({
+    questId: v.id("clanQuests"),
+    userId: v.id("users"),
+    contribution: v.number(),
+    updatedAt: v.number(),
+    /** de-normalized so the panel can render contributor avatars in one read */
+    userName: v.string(),
+    userLevel: v.number(),
+    userAscension: v.string(),
+  })
+    .index("by_quest_user", ["questId", "userId"]),
+
+  /** One banked weekly-quest reward per (user, week) — server-enforced. */
+  clanQuestClaims: defineTable({
+    userId: v.id("users"),
+    weekKey: v.string(),
+    /** reward share that was banked */
+    xp: v.number(),
+    claimedAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
+
+  /** Guild activity feed. Written by profile sync, quest completion, join/leave. */
+  clanEvents: defineTable({
+    clanId: v.id("clans"),
+    actorId: v.id("users"),
+    kind: v.union(
+      v.literal("join"),
+      v.literal("leave"),
+      v.literal("level-up"),
+      v.literal("quest-done"),
+      v.literal("promotion"),
+      v.literal("demotion"),
+      v.literal("kick")
+    ),
+    text: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_clan_time", ["clanId", "createdAt"]),
 });

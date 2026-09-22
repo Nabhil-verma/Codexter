@@ -11,6 +11,7 @@ import Clans from "./pages/Clans";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ProfileBridge from "./components/gamification/ProfileBridge";
+import QuestBridge from "./components/gamification/QuestBridge";
 import { useAccount } from "./AccountProvider";
 
 /** Everything inside requires a signed-in account; guests go to /auth. */
@@ -31,6 +32,7 @@ export default function App() {
       {/* Publishes guild membership to the client store (isolated so a cold
           backend can't take the whole app down). */}
       <ProfileBridge />
+      <QuestBridge />
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route
