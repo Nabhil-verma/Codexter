@@ -3,7 +3,8 @@ import { motion } from "framer-motion";
 import Nav from "../components/Nav";
 import { PageFade, Reveal, Tilt } from "../components/motion";
 import Playground from "../components/Playground";
-import BugHunt, { BUG_HUNTS } from "../components/BugHunt";
+import DebugLab from "../components/DebugLab";
+import { DEBUG_CHALLENGES } from "../data/debug-challenges";
 import LocalModeGuide from "../components/LocalModeGuide";
 
 const STORAGE_KEY = "clr-playground-code-v1";
@@ -187,19 +188,20 @@ export default function PlaygroundPage() {
           </section>
         </Reveal>
 
-        {/* Bug Hunt challenges */}
+        {/* Break-and-fix challenges — graded by running the repair */}
         <Reveal className="mt-16">
           <section>
-            <p className="eyebrow text-center">Bug Hunts</p>
+            <p className="eyebrow text-center">Break &amp; fix</p>
             <h2 className="mt-3 text-center font-display text-3xl font-semibold tracking-tight text-ink-950">
               Find the bugs, fix the code
             </h2>
             <p className="mx-auto mt-3 max-w-md text-center text-ink-600">
-              Each challenge has broken code. Read it, find the bug, then reveal hints
-              or the full solution.
+              Every challenge is a real bug that runs cleanly and prints the wrong
+              thing. Edit the program, run it, and the fix is graded by behaviour —
+              a green run that prints the wrong output still fails.
             </p>
             <div className="mt-10 space-y-10">
-              {BUG_HUNTS.map((bh, i) => (
+              {DEBUG_CHALLENGES.map((bh, i) => (
                 <motion.div
                   key={bh.id}
                   initial={{ opacity: 0, y: 32 }}
@@ -207,7 +209,7 @@ export default function PlaygroundPage() {
                   viewport={{ once: true, margin: "-60px" }}
                   transition={{ duration: 0.55, delay: Math.min(i * 0.08, 0.24), ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <BugHunt challenge={bh} />
+                  <DebugLab challenge={bh} />
                 </motion.div>
               ))}
             </div>

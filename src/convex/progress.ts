@@ -2,6 +2,61 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+/** One shipped milestone: the day it was claimed and what was ticked off. */
+type Claim = { at: string; deliverables: number[] };
+type Claims = Record<string, Claim>;
+
+/**
+ * Claims, validated the way `sanitize` validates scores: a malformed client
+ * must not be able to store junk that breaks every later merge. The date is
+ * normalised to a day key and the deliverables to a sorted set of integers.
+ */
+function sanitizeClaims(raw: unknown): Claims {
+  const out: Claims = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!value || typeof value !== "object") continue;
+    const { at, deliverables } = value as {
+      at?: unknown;
+      deliverables?: unknown;
+    };
+    if (typeof at !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(at)) continue;
+    if (!Array.isArray(deliverables)) continue;
+    const ticks = [
+      ...new Set(
+        deliverables
+          .map((n) => (typeof n === "number" ? n : Number(n)))
+          .filter((n) => Number.isInteger(n) && n >= 0)
+      ),
+    ].sort((a, b) => a - b);
+    if (ticks.length === 0) continue;
+    out[id] = { at, deliverables: ticks };
+  }
+  return out;
+}
+
+/**
+ * Union of two claim logs, matching `mergeClaims` in `src/lib/milestones.ts`
+ * exactly: the claim with more ticked deliverables wins, ties go to the
+ * earlier date. Commutative and associative, so a push and a pull converging
+ * from either side land on the same log.
+ */
+function mergeClaims(a: Claims, b: Claims): Claims {
+  const out: Claims = { ...a };
+  for (const [id, claim] of Object.entries(b)) {
+    const mine = out[id];
+    if (!mine || claim.deliverables.length > mine.deliverables.length) {
+      out[id] = claim;
+    } else if (
+      claim.deliverables.length === mine.deliverables.length &&
+      claim.at < mine.at
+    ) {
+      out[id] = claim;
+    }
+  }
+  return out;
+}
+
 /**
  * Progress is a flat `"${track}/${lesson}!${YYYY-MM-DD}" -> 0..1` map. Every
  * value is coerced to a finite number in [0,1] before it touches the database:
@@ -58,6 +113,57 @@ export const save = mutation({
       await ctx.db.insert("progress", {
         userId,
         data: incoming,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+/**
+ * Load the signed-in user's milestone claims, or null when signed out.
+ * Kept beside `get` rather than folded into it so the two maps keep their own
+ * merge rules (best score per key vs. best claim per milestone).
+ */
+export const getClaims = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+    const row = await ctx.db
+      .query("progress")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    return sanitizeClaims(row?.claims);
+  },
+});
+
+/**
+ * Upsert the signed-in user's milestone claims, merged with whatever is
+ * already stored so shipping on a second device never erases the first.
+ */
+export const saveClaims = mutation({
+  args: { claims: v.any() },
+  handler: async (ctx, { claims }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return;
+    const incoming = sanitizeClaims(claims);
+    if (Object.keys(incoming).length === 0) return;
+    const row = await ctx.db
+      .query("progress")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (row) {
+      await ctx.db.patch(row._id, {
+        claims: mergeClaims(sanitizeClaims(row.claims), incoming),
+        updatedAt: Date.now(),
+      });
+    } else {
+      // A learner can claim a milestone before any lesson score has synced,
+      // so the row has to be created here too — with an empty score map.
+      await ctx.db.insert("progress", {
+        userId,
+        data: {},
+        claims: incoming,
         updatedAt: Date.now(),
       });
     }

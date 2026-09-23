@@ -9,6 +9,11 @@ import { testingTrack } from "./track-testing";
 import { devopsTrack } from "./track-devops";
 import { securityTrack } from "./track-security";
 import { architectureTrack } from "./track-architecture";
+import { tailwindTrack } from "./track-tailwind";
+import { stateTrack } from "./track-state";
+import { apiTrack } from "./track-api";
+import { typescriptTrack } from "./track-typescript";
+import { performanceTrack } from "./track-performance";
 
 export type { Track, Lesson } from "./types";
 export type { Check, QuizQuestion } from "./types";
@@ -24,6 +29,11 @@ export const tracks: Track[] = [
   devopsTrack,
   securityTrack,
   architectureTrack,
+  tailwindTrack,
+  stateTrack,
+  apiTrack,
+  typescriptTrack,
+  performanceTrack,
 ];
 
 export function findTrack(trackId: string) {

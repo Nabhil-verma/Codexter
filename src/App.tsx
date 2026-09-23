@@ -6,6 +6,7 @@ import Lesson from "./pages/Lesson";
 import PlaygroundPage from "./pages/PlaygroundPage";
 import Certificate from "./pages/Certificate";
 import Portfolio from "./pages/Portfolio";
+import Projects from "./pages/Projects";
 import Leaderboard from "./pages/Leaderboard";
 import Clans from "./pages/Clans";
 import AuthPage from "./pages/AuthPage";
@@ -64,6 +65,14 @@ export default function App() {
           element={
             <RequireAuth>
               <Certificate />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/projects"
+          element={
+            <RequireAuth>
+              <Projects />
             </RequireAuth>
           }
         />

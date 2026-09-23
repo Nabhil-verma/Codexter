@@ -23,6 +23,14 @@ import {
 } from "./lib/progress";
 import { clanRewardXp } from "./lib/clanRewards";
 import {
+  applyCloudClaims,
+  currentMilestoneXp,
+  loadClaims,
+  resetClaims,
+  subscribeClaims,
+} from "./lib/milestoneStore";
+import { mergeClaims, type Claims } from "./lib/milestones";
+import {
   ascensionFor,
   computeStreak,
   levelFor,
@@ -77,7 +85,9 @@ function ConvexAccount({ children }: { children: ReactNode }) {
   const { isLoading } = useConvexAuth();
   const me = useQuery(api.users.me); // undefined=loading · null=signed out
   const cloud = useQuery(api.progress.get);
+  const cloudClaims = useQuery(api.progress.getClaims);
   const saveRow = useMutation(api.progress.save);
+  const saveClaimsRow = useMutation(api.progress.saveClaims);
   const wipeRow = useMutation(api.progress.wipe);
   const saveProfile = useMutation(api.profiles.sync);
 
@@ -85,6 +95,9 @@ function ConvexAccount({ children }: { children: ReactNode }) {
   const lastPulled = useRef("");
   const lastPushed = useRef("");
   const pushTimer = useRef<number | null>(null);
+  const lastPulledClaims = useRef("");
+  const lastPushedClaims = useRef("");
+  const claimsPushTimer = useRef<number | null>(null);
   /** Resolve handles for `waitForUser` — called when a user actually appears. */
   const waiters = useRef<(() => void)[]>([]);
 
@@ -138,6 +151,43 @@ function ConvexAccount({ children }: { children: ReactNode }) {
     };
   }, [signedIn, saveRow]);
 
+  /* Pull: merge cloud milestone claims into local, then treat the union as
+     already pushed — the same shape as the progress pull above. */
+  useEffect(() => {
+    if (!signedIn || !cloudClaims) return;
+    const serial = JSON.stringify(cloudClaims);
+    if (serial === lastPulledClaims.current) return;
+    lastPulledClaims.current = serial;
+    const local = loadClaims();
+    const merged = mergeClaims(local, cloudClaims as Claims);
+    const mergedSerial = JSON.stringify(merged);
+    // Only write when the union actually differs — otherwise every cloud
+    // re-delivery would emit and bounce a pointless push back.
+    if (mergedSerial !== JSON.stringify(local)) applyCloudClaims(cloudClaims as Claims);
+    lastPushedClaims.current = mergedSerial;
+  }, [signedIn, cloudClaims]);
+
+  /* Push: a milestone claimed while signed in → debounce-save to cloud. */
+  useEffect(() => {
+    if (!signedIn) return;
+    const unsub = subscribeClaims(() => {
+      const serial = JSON.stringify(loadClaims());
+      if (serial === lastPushedClaims.current) return;
+      lastPushedClaims.current = serial;
+      setSync("syncing");
+      if (claimsPushTimer.current) window.clearTimeout(claimsPushTimer.current);
+      claimsPushTimer.current = window.setTimeout(() => {
+        saveClaimsRow({ claims: loadClaims() })
+          .then(() => setSync("synced"))
+          .catch(() => setSync("error"));
+      }, 600);
+    });
+    return () => {
+      unsub();
+      if (claimsPushTimer.current) window.clearTimeout(claimsPushTimer.current);
+    };
+  }, [signedIn, saveClaimsRow]);
+
   /*
    * Publish the public player card. Everything here is derived from the local
    * progress map, so the leaderboard can sort server-side without the server
@@ -156,7 +206,7 @@ function ConvexAccount({ children }: { children: ReactNode }) {
           .map(([key]) => lessonIdOf(key))
       ).size;
       void saveProfile({
-        xp: playerXp(p, clanRewardXp()),
+        xp: playerXp(p, clanRewardXp() + currentMilestoneXp()),
         xpWeek: xpInRange(p, weekStartKey(today), today),
         xpMonth: xpInRange(p, monthStartKey(today), today),
         level: level.level,
@@ -173,7 +223,16 @@ function ConvexAccount({ children }: { children: ReactNode }) {
       });
     };
     push();
-    return subscribeProgress(push);
+    // A milestone claim moves this player's XP (and therefore their leaderboard
+    // rank) without touching the progress map, so claims have to re-publish the
+    // card too — otherwise shipping the project wouldn't show up until the next
+    // lesson was completed.
+    const offProgress = subscribeProgress(push);
+    const offClaims = subscribeClaims(push);
+    return () => {
+      offProgress();
+      offClaims();
+    };
   }, [signedIn, saveProfile]);
 
   const signIn = useCallback(
@@ -205,12 +264,18 @@ function ConvexAccount({ children }: { children: ReactNode }) {
     resetLocalProgress();
     lastPulled.current = "";
     lastPushed.current = "";
+    lastPulledClaims.current = "";
+    lastPushedClaims.current = "";
     setSync("idle");
   }, [act]);
 
   const resetEverything = useCallback(async () => {
     resetLocalProgress();
+    // Claims are progress too — leaving them local would let a reset device
+    // push the wiped milestones straight back to the account.
+    resetClaims();
     lastPushed.current = "";
+    lastPushedClaims.current = "";
     if (signedIn) {
       try {
         await wipeRow({});

@@ -24,6 +24,12 @@ const links = [
   { to: "/learn", label: "Lessons", active: (p: string) => p.startsWith("/learn") },
   { to: "/playground", label: "Playground", active: (p: string) => p.startsWith("/playground") },
   {
+    to: "/projects",
+    label: "Projects",
+    active: (p: string) => p.startsWith("/projects"),
+    hideOnMobile: true,
+  },
+  {
     to: "/leaderboard",
     label: "Leaderboard",
     active: (p: string) => p.startsWith("/leaderboard"),

@@ -9,6 +9,13 @@ export default defineSchema({
   progress: defineTable({
     userId: v.id("users"),
     data: v.any(),
+    /**
+     * Milestone claims: `{ [milestoneId]: { at: "YYYY-MM-DD", deliverables: number[] } }`.
+     * Optional, so rows written before the project layer existed keep working
+     * without a migration. Separate from `data` because that map is a numeric
+     * score map — claims are dated attestations and merge by a different rule.
+     */
+    claims: v.optional(v.any()),
     updatedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"]),
