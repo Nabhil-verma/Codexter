@@ -415,12 +415,26 @@ All four items from the last pass are closed.
 | TypeScript track | **Shipped** — 6 lessons, 5 runnable against the real compiler in the browser (§3.2) |
 | Performance & Accessibility track | **Shipped** — 6 lessons, 4 of them live previews (§3.2) |
 | CI workflow | **Shipped** — `.github/workflows/ci.yml` runs `bun run typecheck` and `bun run test` on every push to `main` and every PR |
-| Production Convex deploy | **Automated, one secret away** — a `deploy-backend` job runs `bunx convex deploy` on pushes to `main`, and reports why it skipped when `CONVEX_DEPLOY_KEY` is absent. The key is a Convex dashboard credential (Project Settings → Production Deploy Key); add it as a repository secret and the leaderboard, guild and claim-sync functions ship with the next merge |
+| Production Convex deploy | **Deployed** — schema and functions are live on `https://accomplished-hyena-726.convex.cloud`, the cloud deployment the client targets (`CONVEX_DEPLOYMENT` in `src/AccountProvider.tsx`). Verified with `bunx convex function-spec` (`progress.getClaims`/`saveClaims`, `clans.*`, `leaderboard.*`, `profiles.*`, `users.*`) and `bunx convex data` (all tables present). A `deploy-backend` job keeps it in step via `bunx convex deploy` on pushes to `main` |
 
-One honest gap remains, and it is not a code gap: **the production deploy has not
-been executed from here**, because minting a production deploy key requires the
-Convex account owner. Everything up to that step is verified — functions bundle
-and codegen is in sync (`convex dev --once`), the bindings are committed so CI
+The deploy itself is done, so nothing here blocks the app. Two properties of the
+setup are worth stating plainly, because neither is a loose end:
+
+- **This app has one cloud deployment, not a dev/prod pair.** The client builds
+  its URL from the hard-coded `CONVEX_DEPLOYMENT` constant and deliberately does
+  not read `VITE_CONVEX_URL`, so the deployment named there *is* production for
+  this app. Convex labels it "Development" because it was created as the
+  project's dev deployment. Moving to a separate production deployment is a code
+  change plus a data migration — a new deployment starts empty — not a deploy.
+- **The CI secret is the owner's to add.** The `deploy-backend` job reads
+  `CONVEX_DEPLOY_KEY` from repository secrets, and the workspace's GitHub App has
+  no permission to write Actions secrets (HTTP 403), so that one step stays with
+  the owner: GitHub → Settings → Secrets and variables → Actions → New repository
+  secret, using a deploy key for the deployment above. Without it the job reports
+  why and exits clean rather than failing a fork.
+
+Everything else about this pillar is verified by the suite — functions bundle and
+codegen is in sync (`convex dev --once`), the bindings are committed so CI
 typechecks without a backend, and every function is exercised in-process by the
 convex-test suites.
 

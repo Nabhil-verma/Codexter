@@ -78,10 +78,12 @@ frontend):
   replayable and testable without touching the backend.
 
 The leaderboard, guild and milestone-claims panels need the Convex functions
-deployed to production, and until they are, they show an inline "offline" state
-instead of breaking the page. `.github/workflows/ci.yml` runs that deploy on
-every push to `main` once a `CONVEX_DEPLOY_KEY` repository secret is set
-(Convex dashboard → Project Settings → Production Deploy Key); without the
+deployed; when the backend is unreachable they show an inline "offline" state
+instead of breaking the page. The functions are live on the deployment the
+client targets, and `.github/workflows/ci.yml` keeps them there by running
+`bunx convex deploy` on every push to `main` once a `CONVEX_DEPLOY_KEY`
+repository secret is set (GitHub → Settings → Secrets and variables → Actions →
+New repository secret, using a deploy key for that deployment); without the
 secret the job reports why and exits clean, so forks never fail. To do it by
 hand instead: `bunx convex deploy`.
 
