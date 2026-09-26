@@ -1,17 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { tracks, findLesson, lessonKey, totalLessonCount } from "../src/data";
 import { evaluateCheck, runUserCode } from "../src/lib/runner";
+import { runTs, type TsRunResult } from "../src/lib/tsRunner";
 
 const allLessons = tracks.flatMap((t) =>
   t.lessons.map((l) => ({ track: t, lesson: l }))
 );
 
 describe("curriculum integrity", () => {
-  it("has ten tracks", () => {
-    expect(tracks).toHaveLength(10);
+  it("has fifteen tracks", () => {
+    expect(tracks).toHaveLength(15);
   });
 
-  it("covers all ten planned curriculum areas", () => {
+  it("covers all fifteen planned curriculum areas", () => {
     expect(tracks.map((t) => t.id)).toEqual([
       "web",
       "react",
@@ -23,7 +24,20 @@ describe("curriculum integrity", () => {
       "devops",
       "security",
       "architecture",
+      "tailwind",
+      "state",
+      "api",
+      "typescript",
+      "performance",
     ]);
+  });
+
+  it("gives every track its own numeral", () => {
+    // The design renders the numeral as the track's identity, so a duplicate
+    // would make two tracks indistinguishable in the catalog.
+    const numerals = tracks.map((t) => t.numeral);
+    expect(new Set(numerals).size).toBe(numerals.length);
+    for (const n of numerals) expect(n.trim().length).toBeGreaterThan(0);
   });
 
   it("has unique track ids", () => {
@@ -151,12 +165,25 @@ describe("curriculum integrity", () => {
         // first Run shows output (no crash) and the check expression is
         // valid JS (evaluateCheck swallows syntax errors as `false`, so
         // nothing else would catch a typo).
-        const result = await runUserCode(lesson.starter!);
+        //
+        // TypeScript lessons run through the real compiler rather than the JS
+        // sandbox, so a starter has to type-check too — otherwise the learner's
+        // very first Run opens with diagnostics they didn't write.
+        const isTs = lesson.lang === "ts";
+        const result = isTs
+          ? await runTs(lesson.starter!)
+          : await runUserCode(lesson.starter!);
         const out = result.logs.join("\n");
         expect(
           result.error,
           `${track.id}/${lesson.id} errored: ${result.error}`
         ).toBeNull();
+        if (isTs) {
+          expect(
+            (result as TsRunResult).typeErrors,
+            `${track.id}/${lesson.id} starter does not type-check`
+          ).toEqual([]);
+        }
         expect(
           out.length,
           `${track.id}/${lesson.id} starter produced no output`

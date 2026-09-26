@@ -6,6 +6,8 @@ import { PageFade, Reveal } from "../components/motion";
 import LessonBody from "../components/LessonBody";
 import Playground from "../components/Playground";
 import CssSandbox from "../components/CssSandbox";
+import DebugLab from "../components/DebugLab";
+import LivePreview from "../components/LivePreview";
 import GitSim from "../components/GitSim";
 import PredictOutput from "../components/PredictOutput";
 import Quiz from "../components/Quiz";
@@ -63,7 +65,7 @@ export default function Lesson() {
    * Section numerals are derived from which parts actually render, so adding
    * or removing an interactive block never leaves duplicate or skipped steps.
    */
-  const ROMAN = ["Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ"];
+  const ROMAN = ["Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ"];
   const runKind = lesson.starter
     ? "Run"
     : lesson.sandbox
@@ -75,6 +77,8 @@ export default function Lesson() {
     "Read",
     ...(runKind ? [runKind] : []),
     ...(lesson.sort ? ["Sequence"] : []),
+    ...(lesson.debug ? ["Debug"] : []),
+    ...(lesson.preview ? ["Build"] : []),
     "Prove it",
     ...(lesson.starter ? ["Solutions"] : []),
   ];
@@ -116,17 +120,22 @@ export default function Lesson() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.25 }}
-        >
-          <span>{lesson.minutes} min</span>
-          <span className="text-gold-500">·</span>
-          <span>
-            {lesson.starter
-              ? "interactive"
-              : lesson.gitSim
-                ? "terminal"
-                : lesson.sandbox
-                  ? "visual"
-                  : "reading"}
+        >            <span>{lesson.minutes} min</span>
+            <span className="text-gold-500">·</span>
+            <span>
+              {lesson.starter
+                ? lesson.lang === "ts"
+                  ? "typescript"
+                  : "interactive"
+              : lesson.debug
+                ? "break & fix"
+                : lesson.preview
+                  ? "live build"
+                  : lesson.gitSim
+                    ? "terminal"
+                    : lesson.sandbox
+                      ? "visual"
+                      : "reading"}
           </span>
           <span className="text-gold-500">·</span>
           {completed ? (
@@ -152,6 +161,7 @@ export default function Lesson() {
               <Playground
                 starter={lesson.starter}
                 check={lesson.check}
+                lang={lesson.lang}
                 onPass={() => setExerciseDone(true)}
               />
             </section>
@@ -183,6 +193,32 @@ export default function Lesson() {
                 prompt={lesson.sort.prompt}
                 items={lesson.sort.items}
                 explanation={lesson.sort.explanation}
+              />
+            </section>
+          </Reveal>
+        )}
+
+        {/* 2.3 Debug — break-and-fix, graded by running the repair */}
+        {lesson.debug && (
+          <Reveal className="mt-14">
+            <section>
+              <h2 className="eyebrow mb-4">{step("Debug")} · Debug</h2>
+              <DebugLab
+                challenge={lesson.debug}
+                onPass={() => setExerciseDone(true)}
+              />
+            </section>
+          </Reveal>
+        )}
+
+        {/* 2.4 Build — live rendering, graded structurally in the frame */}
+        {lesson.preview && (
+          <Reveal className="mt-14">
+            <section>
+              <h2 className="eyebrow mb-4">{step("Build")} · Build</h2>
+              <LivePreview
+                spec={lesson.preview}
+                onPass={() => setExerciseDone(true)}
               />
             </section>
           </Reveal>

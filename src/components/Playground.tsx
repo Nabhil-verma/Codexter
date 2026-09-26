@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 import { runUserCode, evaluateCheck, type RunResult } from "../lib/runner";
+// Type-only: erased at compile time, so the TS compiler chunk stays lazy.
+import type { TsDiagnostic } from "../lib/tsRunner";
 import type { Check } from "../data/types";
 import HintLadder from "./HintLadder";
 import ErrorNote from "./ErrorNote";
@@ -11,11 +13,15 @@ type Props = {
   onPass?: () => void;
   /** Fires on every code edit — used by the free playground to persist */
   onCodeChange?: (code: string) => void;
+  /** TypeScript lessons type-check through the real compiler before running */
+  lang?: "ts";
 };
 
-export default function Playground({ starter, check, onPass, onCodeChange }: Props) {
+type Outcome = RunResult & { typeErrors?: TsDiagnostic[] };
+
+export default function Playground({ starter, check, onPass, onCodeChange, lang }: Props) {
   const [code, setCode] = useState(starter);
-  const [result, setResult] = useState<RunResult | null>(null);
+  const [result, setResult] = useState<Outcome | null>(null);
   const [running, setRunning] = useState(false);
   const [passed, setPassed] = useState(false);
   const [attempts, setAttempts] = useState(0);
@@ -29,10 +35,16 @@ export default function Playground({ starter, check, onPass, onCodeChange }: Pro
 
   const run = async () => {
     setRunning(true);
-    const r = await runUserCode(code);
+    const r: Outcome =
+      lang === "ts"
+        ? await (await import("../lib/tsRunner")).runTs(code)
+        : await runUserCode(code);
     setResult(r);
     if (check) {
-      const ok = !r.error && evaluateCheck(check.expr, r.logs.join("\n"));
+      const ok =
+        !r.error &&
+        (r.typeErrors?.length ?? 0) === 0 &&
+        evaluateCheck(check.expr, r.logs.join("\n"));
       setPassed(ok);
       setAttempts((a) => a + 1);
       if (ok) onPass?.();
@@ -78,7 +90,9 @@ export default function Playground({ starter, check, onPass, onCodeChange }: Pro
             <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />
             <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />
             <span className="h-2.5 w-2.5 rounded-full bg-gold-400" />
-            <span className="ml-2 font-mono text-xs text-ink-600">editor.js</span>
+            <span className="ml-2 font-mono text-xs text-ink-600">
+              {lang === "ts" ? "editor.ts" : "editor.js"}
+            </span>
           </div>
           <div className="flex gap-2">
             <button
@@ -105,9 +119,27 @@ export default function Playground({ starter, check, onPass, onCodeChange }: Pro
           spellCheck={false}
           rows={Math.max(8, Math.min(24, code.split("\n").length + 1))}
           className="block w-full resize-y bg-ink-950 p-5 font-mono text-[13px] leading-relaxed text-paper-100 outline-none placeholder:text-ink-600"
-          placeholder="Write some JavaScript…"
+          placeholder={
+            lang === "ts" ? "Write some TypeScript…" : "Write some JavaScript…"
+          }
         />
       </div>
+
+      {/* Type errors get an editor-style problems panel of their own */}
+      {result?.typeErrors && result.typeErrors.length > 0 && (
+        <div className="code-window shadow-lift border border-red-400/40">
+          <div className="border-b border-ink-800 px-4 py-2.5 font-mono text-xs text-red-400">
+            type errors · {result.typeErrors.length}
+          </div>
+          <div className="max-h-48 overflow-auto p-4 font-mono text-[12px] leading-relaxed">
+            {result.typeErrors.map((d, i) => (
+              <p key={i} className="whitespace-pre-wrap text-red-400">
+                ✗ TS{d.code} · line {d.line}, col {d.col} — {d.message}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="code-window">
         <div className="border-b border-ink-800 px-4 py-2.5 font-mono text-xs text-ink-600">
@@ -130,6 +162,12 @@ export default function Playground({ starter, check, onPass, onCodeChange }: Pro
           )}
         </div>
       </div>
+
+      {result && lang === "ts" && (result.typeErrors?.length ?? 0) === 0 && (
+        <p className="-mt-2 font-mono text-xs text-green-600">
+          ✓ type check passed
+        </p>
+      )}
 
       {check && (
         <div
@@ -155,16 +193,19 @@ export default function Playground({ starter, check, onPass, onCodeChange }: Pro
         </div>
       )}
 
-      {/* Visual execution toggle */}
-      <button
-        type="button"
-        onClick={() => setShowTrace((v) => !v)}
-        className="w-full rounded-xl border border-dashed border-ink-200 px-4 py-2 font-mono text-xs text-ink-500 transition hover:border-gold-400 hover:text-gold-600"
-      >
-        {showTrace ? "▾ hide" : "▸ show"} visual execution trace
-      </button>
+      {/* Visual execution toggle — the stepper instruments plain JS, so
+          TypeScript lessons rely on the type checker instead. */}
+      {lang !== "ts" && (
+        <button
+          type="button"
+          onClick={() => setShowTrace((v) => !v)}
+          className="w-full rounded-xl border border-dashed border-ink-200 px-4 py-2 font-mono text-xs text-ink-500 transition hover:border-gold-400 hover:text-gold-600"
+        >
+          {showTrace ? "▾ hide" : "▸ show"} visual execution trace
+        </button>
+      )}
 
-      {showTrace && <TraceVisualizer code={code} />}
+      {lang !== "ts" && showTrace && <TraceVisualizer code={code} />}
 
       {check?.hints?.length ? (
         showHints ? (

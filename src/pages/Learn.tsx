@@ -20,6 +20,8 @@ import MicroPractice from "../components/MicroPractice";
 import AscensionPanel from "../components/gamification/AscensionPanel";
 import QuestBoard from "../components/gamification/QuestBoard";
 import { useClanRole } from "../lib/guildState";
+import { MILESTONES, milestonesClaimed } from "../lib/milestones";
+import { useClaims } from "../lib/milestoneStore";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -27,6 +29,7 @@ export default function Learn() {
   const progress = useProgressState();
   const { resetEverything } = useAccount();
   const clanRole = useClanRole();
+  const shipped = milestonesClaimed(useClaims());
   const navigate = useNavigate();
   const doneCount = tracks.reduce(
     (n, t) =>
@@ -196,9 +199,9 @@ export default function Learn() {
             <QuestBoard />
           </Reveal>
 
-          {/* Compete — leaderboard + guild hall */}
+          {/* Compete & ship — leaderboard, guild hall, project board */}
           <Reveal className="mt-6">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Tilt max={6} className="h-full">
                 <Link
                   to="/leaderboard"
@@ -238,6 +241,28 @@ export default function Learn() {
                         : clanRole === "owner"
                           ? "you founded a guild — lead the board"
                           : "your guild is pooling XP"}
+                    </span>
+                  </span>
+                  <span className="font-mono text-gold-600 transition group-hover:translate-x-1">
+                    →
+                  </span>
+                </Link>
+              </Tilt>
+              <Tilt max={6} className="h-full">
+                <Link
+                  to="/projects"
+                  className="glass glass-edge group flex h-full items-center gap-4 rounded-2xl border border-paper-200/60 p-5 transition hover:border-gold-400/60"
+                >
+                  <span className="text-2xl" aria-hidden>
+                    🛠
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-display text-lg font-semibold text-ink-950">
+                      Project board
+                    </span>
+                    <span className="block font-mono text-[11px] text-ink-600">
+                      {shipped} of {MILESTONES.length} milestones shipped · build
+                      something you can show
                     </span>
                   </span>
                   <span className="font-mono text-gold-600 transition group-hover:translate-x-1">

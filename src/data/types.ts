@@ -56,12 +56,62 @@ export type GitObjective = {
   ) => boolean;
 };
 
+/**
+ * A break-and-fix puzzle. `fixCheck` is a JS expression evaluated against the
+ * captured console output, so a repair is graded by behaviour and not by text:
+ * a green run that prints the wrong thing still fails.
+ */
+export type DebugChallenge = {
+  id: string;
+  title: string;
+  brief: string;
+  /** the damaged program the learner starts from */
+  broken: string;
+  /** expression over `output` that only a genuinely repaired program satisfies */
+  fixCheck: string;
+  /** success message shown once the fix passes */
+  win: string;
+  /** tiered hints, revealed one at a time */
+  hints: Hint[];
+  /** what the bug actually was — deliberately the last resort */
+  solution: string;
+  /** reference repair, executed by the test suite */
+  fix: string;
+};
+
+/**
+ * A live-rendering sandbox: the learner edits HTML/CSS/JS and sees the
+ * browser's own layout engine respond. Grading is structural — `requires`
+ * lists the selectors the finished markup must satisfy.
+ */
+export type PreviewSpec = {
+  /** what to build, in one line */
+  goal: string;
+  /** why it matters / how it's graded */
+  brief: string;
+  /** starter markup */
+  html: string;
+  css?: string;
+  js?: string;
+  /** CSS selectors the finished markup must match (graded in-frame) */
+  requires?: string[];
+  /** Tailwind's Play CDN is injected unless this is "none" */
+  framework?: "tailwind" | "none";
+};
+
 export type Lesson = {
   id: string;
   title: string;
   minutes: number;
   /** Reading lessons have no runnable exercise — body + quiz only */
   reading?: boolean;
+  /** Run this exercise through the real TypeScript compiler: type-check,
+   * strip types, then execute in the shared JS sandbox. */
+  lang?: "ts";
+  /** Break-and-fix lab — graded by running the repaired program */
+  debug?: DebugChallenge;
+  /** Live-rendering sandbox for markup, layout and styling lessons */
+  preview?: PreviewSpec;
   /** Mounts the visual CSS flexbox/grid sandbox instead of the code playground */
   sandbox?: boolean;
   /** Mounts the guided Git terminal simulator instead of the code playground */
