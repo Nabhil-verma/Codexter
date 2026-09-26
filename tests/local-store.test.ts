@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createLocalStore, readRecord } from "../src/lib/localStore";
+import { createLocalStore, migrateStorageKey, readRecord } from "../src/lib/localStore";
 import { claimMilestone, loadClaims, resetClaims } from "../src/lib/milestoneStore";
 import { bankClanReward, clanRewardXp, resetClanRewards } from "../src/lib/clanRewards";
 
@@ -110,5 +110,49 @@ describe("stores built on it keep their own validation", () => {
     expect(clanRewardXp()).toBe(1400);
     resetClanRewards();
     expect(clanRewardXp()).toBe(0);
+  });
+});
+
+describe("legacy key migration", () => {
+  it("copies the old value onto the new key, then deletes the old one", () => {
+    localStorage.setItem("old-key", JSON.stringify({ a: 1 }));
+    migrateStorageKey("old-key", "new-key");
+    expect(JSON.parse(localStorage.getItem("new-key")!)).toEqual({ a: 1 });
+    expect(localStorage.getItem("old-key")).toBeNull();
+  });
+
+  it("leaves both keys alone when the new key already has data", () => {
+    localStorage.setItem("old-key", "stale");
+    localStorage.setItem("new-key", "live");
+    migrateStorageKey("old-key", "new-key");
+    expect(localStorage.getItem("new-key")).toBe("live");
+    expect(localStorage.getItem("old-key")).toBe("stale");
+  });
+
+  it("no-ops when nothing is stored under either key", () => {
+    migrateStorageKey("absent-old", "absent-new");
+    expect(localStorage.getItem("absent-new")).toBeNull();
+  });
+
+  it("stays silent when storage is unavailable", () => {
+    vi.stubGlobal("localStorage", undefined);
+    expect(() => migrateStorageKey("old-key", "new-key")).not.toThrow();
+  });
+
+  // The generic helper above only matters if the app's own keys actually use
+  // it — importing the component runs the migration exactly as a page load
+  // does, so this fails if the wiring is ever dropped.
+  it("renames the solution feed's unversioned keys on import", async () => {
+    const solutions = {
+      "web/hello": [{ id: "s1", author: "You", code: "console.log(1)", votes: 2 }],
+    };
+    localStorage.setItem("cl_solutions", JSON.stringify(solutions));
+    localStorage.setItem("cl_votes", JSON.stringify(["s1"]));
+    vi.resetModules();
+    await import("../src/components/SolutionFeed");
+    expect(localStorage.getItem("cl_solutions")).toBeNull();
+    expect(localStorage.getItem("cl_votes")).toBeNull();
+    expect(JSON.parse(localStorage.getItem("clr_solutions")!)).toEqual(solutions);
+    expect(JSON.parse(localStorage.getItem("clr_votes")!)).toEqual(["s1"]);
   });
 });

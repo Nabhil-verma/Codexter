@@ -101,3 +101,27 @@ export function readRecord(raw: string | null): Record<string, unknown> {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
   return parsed as Record<string, unknown>;
 }
+
+/**
+ * Rename one storage key: copy the legacy value onto the new key, then delete
+ * the legacy entry.
+ *
+ * Silent by design — it runs at module load, before the stores that own the
+ * keys exist, and a storage problem must never interrupt a page. The order is
+ * the point: if writing the new key fails, the old value is still there, so
+ * data is never orphaned between the two keys. When the new key already holds
+ * a value, nothing is touched at all — that is the live copy (the rename
+ * already happened, or fresh data was written) and guessing which of the two
+ * is newer is exactly how a migration loses someone's work.
+ */
+export function migrateStorageKey(oldKey: string, newKey: string): void {
+  try {
+    if (localStorage.getItem(newKey) !== null) return;
+    const legacy = localStorage.getItem(oldKey);
+    if (legacy === null) return;
+    localStorage.setItem(newKey, legacy);
+    localStorage.removeItem(oldKey);
+  } catch {
+    // Storage missing, blocked or full — leave the legacy key in place.
+  }
+}

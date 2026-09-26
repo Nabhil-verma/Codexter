@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createLocalStore, useLocalStore } from "../lib/localStore";
+import { createLocalStore, migrateStorageKey, useLocalStore } from "../lib/localStore";
 
 type Solution = {
   id: string;
@@ -25,8 +25,14 @@ function isSolution(value: unknown): value is Solution {
   );
 }
 
+/* The storage prefix moved from `cl_` to `clr_`. Rename the unversioned keys
+   on load, before the stores are created — copy first, delete after, so a
+   failed write can never orphan a learner's submissions or votes. */
+migrateStorageKey("cl_solutions", "clr_solutions");
+migrateStorageKey("cl_votes", "clr_votes");
+
 const solutionsStore = createLocalStore<Record<string, Solution[]>>(
-  "cl_solutions",
+  "clr_solutions",
   (raw) => {
     if (raw === null || raw === "") return {};
     const parsed: unknown = JSON.parse(raw);
@@ -39,7 +45,7 @@ const solutionsStore = createLocalStore<Record<string, Solution[]>>(
   }
 );
 
-const votesStore = createLocalStore<string[]>("cl_votes", (raw) => {
+const votesStore = createLocalStore<string[]>("clr_votes", (raw) => {
   if (raw === null || raw === "") return [];
   const parsed: unknown = JSON.parse(raw);
   return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
