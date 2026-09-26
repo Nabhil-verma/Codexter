@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createLocalStore, useLocalStore } from "../lib/localStore";
 
 type Solution = {
   id: string;
@@ -8,22 +9,45 @@ type Solution = {
   note?: string;
 };
 
-const STORAGE_KEY = "cl_solutions";
+/* Both keys go through the shared store primitive, so a hand-edited or
+   half-written entry degrades to "nothing stored" instead of throwing inside
+   render — and writing in a private-mode browser can't break the feed. */
 
-function loadSolutions(): Record<string, Solution[]> {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-  } catch {
-    return {};
+function isSolution(value: unknown): value is Solution {
+  const s = value as Partial<Solution> | null;
+  return (
+    !!s &&
+    typeof s.id === "string" &&
+    typeof s.author === "string" &&
+    typeof s.code === "string" &&
+    typeof s.votes === "number" &&
+    Number.isFinite(s.votes)
+  );
+}
+
+const solutionsStore = createLocalStore<Record<string, Solution[]>>(
+  "cl_solutions",
+  (raw) => {
+    if (raw === null || raw === "") return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const out: Record<string, Solution[]> = {};
+    for (const [lessonKey, list] of Object.entries(parsed as Record<string, unknown>)) {
+      if (Array.isArray(list)) out[lessonKey] = list.filter(isSolution);
+    }
+    return out;
   }
-}
+);
 
-function saveSolutions(all: Record<string, Solution[]>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-}
+const votesStore = createLocalStore<string[]>("cl_votes", (raw) => {
+  if (raw === null || raw === "") return [];
+  const parsed: unknown = JSON.parse(raw);
+  return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+});
 
-function seedSolutions(lessonKey: string): Solution[] {
-  // Seed some starter solutions per lesson
+function seedSolutions(lessonKey: string): void {
+  const all = solutionsStore.get();
+  if (all[lessonKey]?.length) return;
   const seeds: Solution[] = [
     {
       id: "seed-1",
@@ -47,12 +71,7 @@ function seedSolutions(lessonKey: string): Solution[] {
       note: "Finds even numbers instead — alternative approach",
     },
   ];
-  const all = loadSolutions();
-  if (!all[lessonKey]) {
-    all[lessonKey] = seeds;
-    saveSolutions(all);
-  }
-  return all[lessonKey];
+  solutionsStore.set({ ...all, [lessonKey]: seeds });
 }
 
 type Props = {
@@ -61,49 +80,36 @@ type Props = {
 };
 
 export default function SolutionFeed({ lessonKey, passed }: Props) {
-  const [solutions, setSolutions] = useState<Solution[]>([]);
-  const [voted, setVoted] = useState<Set<string>>(new Set());
-  const [showSubmit, setShowSubmit] = useState(false);
-  const [newCode, setNewCode] = useState("");
-  const [newNote, setNewNote] = useState("");
+  const all = useLocalStore(solutionsStore);
+  const voted = new Set(useLocalStore(votesStore));
+  const solutions = all[lessonKey] ?? [];
 
+  // Seed once per lesson, on the first view *after* the exercise is passed —
+  // nothing to spoil before the learner has solved it themselves.
   useEffect(() => {
-    if (passed) {
-      setSolutions(seedSolutions(lessonKey));
-      try {
-        const v = JSON.parse(localStorage.getItem("cl_votes") ?? "[]");
-        setVoted(new Set(v));
-      } catch { /* ignore */ }
-    }
+    if (passed) seedSolutions(lessonKey);
   }, [lessonKey, passed]);
 
   const upvote = (id: string) => {
     if (voted.has(id)) return;
-    const next = new Set(voted).add(id);
-    setVoted(next);
-    localStorage.setItem("cl_votes", JSON.stringify([...next]));
-    setSolutions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, votes: s.votes + 1 } : s))
-    );
+    votesStore.set([...voted, id]);
+    solutionsStore.set({
+      ...solutionsStore.get(),
+      [lessonKey]: solutions.map((s) => (s.id === id ? { ...s, votes: s.votes + 1 } : s)),
+    });
   };
 
-  const submit = () => {
-    if (!newCode.trim()) return;
+  const submit = (code: string, note: string) => {
+    if (!code.trim()) return;
     const sol: Solution = {
       id: `user-${Date.now()}`,
       author: "You",
-      code: newCode.trim(),
+      code: code.trim(),
       votes: 0,
-      note: newNote.trim() || undefined,
+      note: note.trim() || undefined,
     };
-    const all = loadSolutions();
-    const list = [...(all[lessonKey] ?? []), sol];
-    all[lessonKey] = list;
-    saveSolutions(all);
-    setSolutions(list);
-    setNewCode("");
-    setNewNote("");
-    setShowSubmit(false);
+    const stored = solutionsStore.get();
+    solutionsStore.set({ ...stored, [lessonKey]: [...(stored[lessonKey] ?? []), sol] });
   };
 
   if (!passed) {
@@ -121,43 +127,11 @@ export default function SolutionFeed({ lessonKey, passed }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-ink-500">
-          community solutions · {solutions.length}
-        </p>
-        <button
-          onClick={() => setShowSubmit((v) => !v)}
-          className="font-mono text-xs text-gold-600 hover:text-gold-500"
-        >
-          {showSubmit ? "cancel" : "+ share yours"}
-        </button>
-      </div>
+      <SubmitForm count={solutions.length} onSubmit={submit} />
 
-      {showSubmit && (
-        <div className="rounded-xl border border-ink-200 bg-paper-50 p-4 space-y-2">
-          <textarea
-            value={newCode}
-            onChange={(e) => setNewCode(e.target.value)}
-            rows={4}
-            className="block w-full rounded-lg border border-ink-200 bg-ink-950 p-3 font-mono text-[12px] text-paper-100 outline-none focus:border-gold-400"
-            placeholder="Paste your solution code…"
-          />
-          <input
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            className="block w-full rounded-lg border border-ink-200 bg-paper-50 px-3 py-2 text-sm text-ink-800 outline-none focus:border-gold-400"
-            placeholder="Optional note about your approach…"
-          />
-          <button
-            onClick={submit}
-            className="rounded-full bg-gold-400 px-4 py-1.5 font-mono text-xs font-bold text-ink-950 hover:bg-gold-300"
-          >
-            Submit
-          </button>
-        </div>
-      )}
-
-      {solutions
+      {/* Sorted on a copy: sorting the stored array in place would mutate the
+          value every other view of this store is reading. */}
+      {[...solutions]
         .sort((a, b) => b.votes - a.votes)
         .map((sol) => (
           <div
@@ -172,8 +146,10 @@ export default function SolutionFeed({ lessonKey, passed }: Props) {
                 )}
               </div>
               <button
+                type="button"
                 onClick={() => upvote(sol.id)}
                 disabled={voted.has(sol.id)}
+                aria-label={`Upvote the solution by ${sol.author} (${sol.votes} votes)`}
                 className={`flex shrink-0 items-center gap-1 rounded-full border px-3 py-1 font-mono text-[11px] transition ${
                   voted.has(sol.id)
                     ? "border-gold-400 bg-gold-400/10 text-gold-600"
@@ -189,5 +165,67 @@ export default function SolutionFeed({ lessonKey, passed }: Props) {
           </div>
         ))}
     </div>
+  );
+}
+
+/** Keeps the draft code/note local until submit — nothing half-typed persists. */
+function SubmitForm({
+  count,
+  onSubmit,
+}: {
+  count: number;
+  onSubmit: (code: string, note: string) => void;
+}) {
+  const [code, setCode] = useState("");
+  const [note, setNote] = useState("");
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-ink-500">
+          community solutions · {count}
+        </p>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="font-mono text-xs text-gold-600 hover:text-gold-500"
+        >
+          {open ? "cancel" : "+ share yours"}
+        </button>
+      </div>
+
+      {open && (
+        <div className="space-y-2 rounded-xl border border-ink-200 bg-paper-50 p-4">
+          <textarea
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            rows={4}
+            aria-label="Your solution code"
+            className="block w-full rounded-lg border border-ink-200 bg-ink-950 p-3 font-mono text-[12px] text-paper-100 outline-none focus:border-gold-400"
+            placeholder="Paste your solution code…"
+          />
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            aria-label="Note about your approach (optional)"
+            className="block w-full rounded-lg border border-ink-200 bg-paper-50 px-3 py-2 text-sm text-ink-800 outline-none focus:border-gold-400"
+            placeholder="Optional note about your approach…"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              onSubmit(code, note);
+              setCode("");
+              setNote("");
+              setOpen(false);
+            }}
+            className="rounded-full bg-gold-400 px-4 py-1.5 font-mono text-xs font-bold text-ink-950 hover:bg-gold-300"
+          >
+            Submit
+          </button>
+        </div>
+      )}
+    </>
   );
 }

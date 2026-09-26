@@ -42,9 +42,17 @@ export default function AiSettingsModal({ onClose }: { onClose: () => void }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg rounded-2xl border border-paper-200 bg-paper-50 p-8 shadow-lift">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ai-settings-title"
+        className="w-full max-w-lg rounded-2xl border border-paper-200 bg-paper-50 p-8 shadow-lift"
+      >
         <p className="eyebrow">settings</p>
-        <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink-950">
+        <h2
+          id="ai-settings-title"
+          className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink-950"
+        >
           AI Tutor Settings
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-600">
@@ -143,11 +151,7 @@ export default function AiSettingsModal({ onClose }: { onClose: () => void }) {
                 saved!
               </span>
             )}
-            <button
-              type="button"
-              onClick={handleSave}
-              className="btn-gold !px-5"
-            >
+            <button type="button" onClick={handleSave} className="btn-gold !px-5">
               Save
             </button>
           </div>

@@ -226,6 +226,7 @@ export default function AuthPage() {
                         <input
                           ref={firstInput}
                           className={inputCls}
+                          aria-label="Your name"
                           placeholder="Your name"
                           value={name}
                           onChange={(e) => setName(e.target.value)}
@@ -239,6 +240,7 @@ export default function AuthPage() {
                     className={inputCls}
                     type="email"
                     required
+                    aria-label="Email address"
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -249,6 +251,7 @@ export default function AuthPage() {
                     type="password"
                     required
                     minLength={8}
+                    aria-label="Password (at least 8 characters)"
                     placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -257,6 +260,7 @@ export default function AuthPage() {
                   <AnimatePresence>
                     {error && (
                       <motion.p
+                        role="alert"
                         className="text-sm text-red-600"
                         initial={{ opacity: 0, y: -6 }}
                         animate={{ opacity: 1, y: 0 }}

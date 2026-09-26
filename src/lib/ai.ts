@@ -4,6 +4,8 @@
  * except when the student explicitly triggers an AI call.
  */
 
+import { createLocalStore, readRecord, useLocalStore } from "./localStore";
+
 const SETTINGS_KEY = "cl_ai_settings";
 
 export type AiProvider = "gemini" | "claude" | null;
@@ -23,35 +25,44 @@ const DEFAULTS: AiSettings = {
   tutorName: "",
 };
 
+/**
+ * A stored settings blob is only trusted field by field: an unknown provider
+ * (or a non-string key) used to reach the provider calls and fail confusingly
+ * at fetch time, so it is normalised back to "no AI configured" instead.
+ */
+function parseSettings(raw: string | null): AiSettings {
+  const stored = readRecord(raw);
+  const provider =
+    stored.provider === "gemini" || stored.provider === "claude" ? stored.provider : null;
+  const rawKeys = stored.keys;
+  const keys: AiSettings["keys"] = {};
+  if (rawKeys && typeof rawKeys === "object") {
+    for (const [name, value] of Object.entries(rawKeys as Record<string, unknown>)) {
+      if ((name === "gemini" || name === "claude") && typeof value === "string") {
+        keys[name] = value;
+      }
+    }
+  }
+  return {
+    provider,
+    keys,
+    tutorName: typeof stored.tutorName === "string" ? stored.tutorName : DEFAULTS.tutorName,
+  };
+}
+
+const store = createLocalStore<AiSettings>(SETTINGS_KEY, parseSettings);
+
 export function loadAiSettings(): AiSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
-  } catch { /* corrupted — fall through */ }
-  return { ...DEFAULTS };
+  return store.get();
 }
 
 export function saveAiSettings(s: AiSettings) {
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-  } catch { /* storage unavailable */ }
-  emit();
+  store.set(s);
 }
 
-/* ------------------------------------------------------------------ */
-/* Tiny pub/sub so the settings modal and tutor stay in sync           */
-/* ------------------------------------------------------------------ */
-
-type Listener = () => void;
-const listeners = new Set<Listener>();
-
-export function subscribeAiSettings(fn: Listener): () => void {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
-}
-
-function emit() {
-  for (const fn of listeners) fn();
+/** Settings + a React binding, so the modal and the tutor stay in sync. */
+export function useAiSettings(): AiSettings {
+  return useLocalStore(store);
 }
 
 /* ------------------------------------------------------------------ */

@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { AnimatePresence, motion, useScroll, useMotionValueEvent } from "framer-motion";
 import { useAccount } from "../AccountProvider";
 import AiSettingsModal from "./AiSettingsModal";
+import ThemeToggle from "./ThemeToggle";
 import { lessonIdOf, useProgressState } from "../lib/progress";
 import { totalLessonCount } from "../data";
 
@@ -105,7 +106,7 @@ export default function Nav() {
           </span>
         </Link>
 
-        <nav className="flex items-center gap-1.5 text-sm">
+        <nav aria-label="Main" className="flex items-center gap-1.5 text-sm">
           {links.map((l) => (
             <Link
               key={l.to}
@@ -132,6 +133,8 @@ export default function Nav() {
           <span className="hidden items-center gap-1.5 rounded-full border border-paper-200/70 bg-paper-50/50 px-3 py-1.5 font-mono text-xs text-ink-600 sm:flex">
             <span className="gradient-text font-bold">{done}</span>/{totalLessonCount} done
           </span>
+
+          <ThemeToggle />
 
           <button
             type="button"

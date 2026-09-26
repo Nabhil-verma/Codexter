@@ -124,7 +124,7 @@ export default function DragSort({
                 className={
                   "flex items-center gap-3 rounded-xl border px-3.5 py-3 font-mono text-[13px] leading-snug transition-colors " +
                   (correctHere
-                    ? "border-gold-400 bg-gold-400/12 text-ink-950"
+                    ? "border-gold-400 bg-gold-400/15 text-ink-950"
                     : wrongHere
                       ? "border-red-300 bg-red-50/70 text-red-700"
                       : "border-ink-200 bg-paper-50 text-ink-800")

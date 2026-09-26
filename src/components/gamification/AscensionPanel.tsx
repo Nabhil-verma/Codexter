@@ -22,7 +22,7 @@ import {
 const R = 44;
 const CIRC = 2 * Math.PI * R;
 
-export function LevelRing({ level, pct }: { level: number; pct: number }) {
+function LevelRing({ level, pct }: { level: number; pct: number }) {
   return (
     <div className="relative h-28 w-28 shrink-0">
       <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">

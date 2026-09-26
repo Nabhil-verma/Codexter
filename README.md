@@ -339,7 +339,7 @@ push to `main` and every pull request.
 ```
 src/
 ├── main.tsx                  # entry: providers + global CSS
-├── App.tsx                   # router, RequireAuth, route-level error boundary
+├── App.tsx                   # router, RequireAuth, route boundary, lazy routes
 ├── AccountProvider.tsx       # Convex client, auth state, progress merge/push
 ├── index.css                 # every colour token, light + dark
 ├── convex/
@@ -356,7 +356,8 @@ src/
 │   ├── types.ts              # Lesson, Check, DebugChallenge, PreviewSpec, …
 │   └── track-*.ts            # 15 tracks, 86 lessons of content
 ├── lib/
-│   ├── progress.ts           # localStorage store, v1→v2 migration, pub/sub
+│   ├── localStore.ts         # the shared localStorage store + pub/sub primitive
+│   ├── progress.ts           # progress store on top of it, v1→v2 migration
 │   ├── gamification.ts       # XP, quests, streaks, ascension, titles, badges
 │   ├── milestones.ts         # the six project milestones + gating
 │   ├── runner.ts             # JS sandbox, loop guard, mock REST server
@@ -372,7 +373,7 @@ src/
 │   └── clan/                 # guild feed + quest panel
 └── pages/                    # Landing, Learn, Lesson, Playground, Certificate,
                              # Projects, Portfolio, Leaderboard, Clans, Auth
-tests/                        # 17 suites, 173 tests
+tests/                        # 20 suites, 200 tests
 ```
 
 ## Accounts, progress & cloud sync
@@ -435,7 +436,7 @@ you run the code to find out.
 npm test        # or: bun x vitest run
 ```
 
-**173 tests across 17 files.** The content tests are the interesting ones,
+**200 tests across 20 files.** The content tests are the interesting ones,
 because content is where bugs hide:
 
 - Every broken debug program fails its own check, every reference fix passes it,
@@ -453,6 +454,12 @@ because content is where bugs hide:
 - The first cohort's bug list, pinned: real Convex errors render as explanations
   while the rest of the page keeps working, an assembly answer only verifies in
   *runnable* order, and the theme toggle flips `.dark` and remembers it
+- Every colour token the source uses exists in both themes *and* in the Tailwind
+  config, and every opacity modifier sits on Tailwind's scale — `bg-ink-100` and
+  `bg-gold-400/12` both compiled to nothing before this test existed
+- One storage primitive behind progress, claims, guild rewards, AI settings and
+  the theme: corrupt JSON, blocked storage and hand-edited entries all degrade
+  to the default instead of throwing inside a render
 
 ## Deployment
 

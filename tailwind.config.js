@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       fontFamily: {
@@ -8,31 +9,44 @@ export default {
         mono: ["'JetBrains Mono'", "'Fira Code'", "ui-monospace", "monospace"],
         sans: ["Inter", "system-ui", "sans-serif"],
       },
+      /*
+       * Every color resolves through a CSS variable (declared in src/index.css
+       * for both :root and .dark), so the whole palette — surfaces, text,
+       * borders and accents — flips with one class on <html>. Values are
+       * space-separated RGB channels so Tailwind's `/opacity` modifiers keep
+       * working unchanged.
+       */
       colors: {
-        // warm off-white page surfaces
+        // warm off-white page surfaces (dark: near-black)
         paper: {
-          DEFAULT: "#faf8f4",
-          50: "#ffffff",
-          100: "#f4f1ea",
-          200: "#e9e4d8",
-          300: "#d9d2c0",
+          DEFAULT: "rgb(var(--paper) / <alpha-value>)",
+          50: "rgb(var(--paper-50) / <alpha-value>)",
+          100: "rgb(var(--paper-100) / <alpha-value>)",
+          200: "rgb(var(--paper-200) / <alpha-value>)",
+          300: "rgb(var(--paper-300) / <alpha-value>)",
         },
-        // near-black text + dark code windows
+        // near-black text + dark code windows (dark: warm light text)
         ink: {
-          950: "#0b0b0c",
-          900: "#131316",
-          850: "#1b1b1f",
-          800: "#242429",
-          700: "#2e2e35",
-          600: "#3a3a42",
+          50: "rgb(var(--ink-50) / <alpha-value>)",
+          100: "rgb(var(--ink-100) / <alpha-value>)",
+          200: "rgb(var(--ink-200) / <alpha-value>)",
+          300: "rgb(var(--ink-300) / <alpha-value>)",
+          400: "rgb(var(--ink-400) / <alpha-value>)",
+          500: "rgb(var(--ink-500) / <alpha-value>)",
+          600: "rgb(var(--ink-600) / <alpha-value>)",
+          700: "rgb(var(--ink-700) / <alpha-value>)",
+          800: "rgb(var(--ink-800) / <alpha-value>)",
+          850: "rgb(var(--ink-850) / <alpha-value>)",
+          900: "rgb(var(--ink-900) / <alpha-value>)",
+          950: "rgb(var(--ink-950) / <alpha-value>)",
         },
-        // metallic gold accent
+        // metallic gold accent (dark: brightened so it reads on black)
         gold: {
-          300: "#ecd9a0",
-          400: "#d4af37",
-          500: "#b8912e",
-          600: "#94721f",
-          700: "#6f5514",
+          300: "rgb(var(--gold-300) / <alpha-value>)",
+          400: "rgb(var(--gold-400) / <alpha-value>)",
+          500: "rgb(var(--gold-500) / <alpha-value>)",
+          600: "rgb(var(--gold-600) / <alpha-value>)",
+          700: "rgb(var(--gold-700) / <alpha-value>)",
         },
       },
       boxShadow: {

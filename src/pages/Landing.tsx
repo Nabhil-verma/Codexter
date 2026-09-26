@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import {
   motion,
   useMotionValue,
+  useReducedMotion,
   useScroll,
   useSpring,
   useTransform,
@@ -362,13 +363,26 @@ export default function Landing() {
   const smx = useSpring(mx, { stiffness: 50, damping: 20 });
   const smy = useSpring(my, { stiffness: 50, damping: 20 });
 
-  /* Scroll-driven hero exit */
+  /*
+   * Scroll-driven hero exit. The raw scroll position is spiky (especially on
+   * trackpads and momentum scrolling), so it's run through a spring first — the
+   * fade then glides instead of snapping frame to frame. Only opacity and
+   * translate are animated: scaling a text-heavy layer forced a repaint of the
+   * whole hero on every frame, which is what made it feel laggy.
+   */
   const { scrollY } = useScroll();
-  const heroOpacity = useTransform(scrollY, [0, 520], [1, 0]);
-  const heroY = useTransform(scrollY, [0, 520], [0, 90]);
-  const heroScale = useTransform(scrollY, [0, 520], [1, 0.94]);
-  const gridScroll = useTransform(scrollY, [0, 700], [0, 120]);
+  const smoothScroll = useSpring(scrollY, {
+    stiffness: 140,
+    damping: 30,
+    mass: 0.35,
+    restDelta: 0.5,
+  });
+  const reduceMotion = useReducedMotion();
+  const heroOpacity = useTransform(smoothScroll, [0, 480], [1, 0]);
+  const heroY = useTransform(smoothScroll, [0, 480], [0, 72]);
+  const gridScroll = useTransform(smoothScroll, [0, 700], [0, 120]);
 
+  /* Parallax tracks the pointer over the hero only — not the whole page. */
   function onMouseMove(e: React.MouseEvent<HTMLElement>) {
     const { innerWidth, innerHeight } = window;
     mx.set((e.clientX / innerWidth - 0.5) * 40);
@@ -376,14 +390,14 @@ export default function Landing() {
   }
 
   return (
-    <div
-      className="min-h-screen overflow-x-hidden"
-      onMouseMove={onMouseMove}
-    >
+    <div className="min-h-screen overflow-x-hidden">
       <Nav />
 
       {/* ─── Hero ─── */}
-      <section className="relative overflow-hidden mesh-bg noise-overlay">
+      <section
+        className="relative overflow-hidden mesh-bg noise-overlay"
+        onMouseMove={reduceMotion ? undefined : onMouseMove}
+      >
         {/* Parallax orbs */}
         <div className="pointer-events-none absolute inset-0" aria-hidden>
           <Orb className="left-[8%] top-[15%] bg-gold-400/10" size={260} duration={16} />
@@ -400,7 +414,7 @@ export default function Landing() {
 
         <motion.div
           className="relative mx-auto max-w-6xl px-4 pb-24 pt-28 text-center sm:pt-36"
-          style={{ opacity: heroOpacity, y: heroY, scale: heroScale }}
+          style={reduceMotion ? undefined : { opacity: heroOpacity, y: heroY }}
         >
           {/* Floating code snippets — mouse parallax depths */}
           <div className="pointer-events-none absolute inset-0" aria-hidden>
@@ -670,7 +684,8 @@ export default function Landing() {
 
       {/* ─── Second marquee (reverse, light) ─── */}
       <section className="relative overflow-hidden border-y border-paper-200 bg-paper-100/60 py-5">
-        <Marquee speed={38} reverse fadeColor="#f4f1ea">
+        {/* the fade must match the section surface in both themes */}
+        <Marquee speed={38} reverse fadeColor="rgb(var(--paper-100))">
           {marqueeItems
             .slice()
             .reverse()

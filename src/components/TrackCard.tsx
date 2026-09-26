@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { tracks, type Track } from "../data";
 import { scoreFor, useProgressState, type Progress } from "../lib/progress";
 
-export function trackProgress(track: Track, progress: Progress) {
+function trackProgress(track: Track, progress: Progress) {
   const done = track.lessons.filter(
     (l) => scoreFor(progress, track.id + "/" + l.id) >= 1
   ).length;

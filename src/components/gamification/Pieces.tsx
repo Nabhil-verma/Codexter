@@ -5,6 +5,7 @@ import {
   titleLabel,
   type Ascension,
 } from "../../lib/gamification";
+import { panelMessage } from "../../lib/friendlyError";
 
 /* ═══════════════════════════════════════════════════════════════
    Small pieces shared by the leaderboard, guild hall, quest board
@@ -147,31 +148,67 @@ export function TitleTag({
 }
 
 /**
- * Scopes a failed render to one panel. Used around the live Convex queries:
- * if the backend hasn't published these functions yet (or is unreachable), the
+ * Scopes a failed render to one panel. Used around the live Convex queries: if
+ * the backend hasn't published these functions yet (or is unreachable), the
  * rest of the page keeps working instead of white-screening.
+ *
+ * The error itself is kept so the fallback can explain *why* instead of
+ * dumping a raw Convex string on the learner — a deployment that predates the
+ * app is the single most common failure here.
  */
+type Fallback = ReactNode | ((error: Error, reset: () => void) => ReactNode);
+
 export class PanelBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode },
-  { failed: boolean }
+  { children: ReactNode; fallback?: Fallback; message?: string },
+  { error: Error | null }
 > {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
   }
+
+  reset = () => this.setState({ error: null });
+
   render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
+    const { error } = this.state;
+    if (!error) return this.props.children;
+    const { fallback } = this.props;
+    if (fallback !== undefined) {
+      return typeof fallback === "function" ? fallback(error, this.reset) : fallback;
+    }
+    const { title, body } = panelMessage(error);
+    return (
+      <PanelFallback
+        title={title}
+        message={this.props.message ? this.props.message + " " + body : body}
+        onRetry={this.reset}
+      />
+    );
   }
 }
 
 /** Neutral "we couldn't load this" card, sized like a real panel. */
-export function PanelFallback({ message }: { message: string }) {
+export function PanelFallback({
+  message,
+  title = "offline",
+  onRetry,
+}: {
+  message: string;
+  title?: string;
+  onRetry?: () => void;
+}) {
   return (
     <div className="glass glass-edge rounded-2xl border border-paper-200/60 p-8 text-center">
       <p className="font-mono text-xs uppercase tracking-[0.2em] text-gold-600">
-        offline
+        {title}
       </p>
-      <p className="mt-3 text-sm text-ink-600">{message}</p>
+      <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-ink-600">{message}</p>
+      {onRetry && (
+        <button type="button" onClick={onRetry} className="btn-ghost mt-5 !px-5 !py-2 text-sm">
+          Try again
+        </button>
+      )}
     </div>
   );
 }

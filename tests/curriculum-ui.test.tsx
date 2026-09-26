@@ -128,19 +128,20 @@ describe("the lesson step flow", () => {
  * them, which is the same as not shipping them.
  */
 describe("the project board", () => {
-  it("is served at /projects", () => {
+  // Routes are code-split, so the first assertion waits for the chunk.
+  it("is served at /projects", async () => {
     window.location.hash = "#/projects";
     render(<App />);
 
     expect(
-      screen.getByRole("heading", { name: "The Continuous Portfolio" })
+      await screen.findByRole("heading", { name: "The Continuous Portfolio" })
     ).toBeTruthy();
   });
 
-  it("is linked from the nav", () => {
+  it("is linked from the nav", async () => {
     window.location.hash = "#/projects";
     render(<App />);
 
-    expect(screen.getByRole("link", { name: "Projects" })).toBeTruthy();
+    expect(await screen.findByRole("link", { name: "Projects" })).toBeTruthy();
   });
 });
