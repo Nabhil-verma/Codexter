@@ -296,9 +296,13 @@ Worth a section, because this is the part most learning apps fake.
   declared and the DOM is deliberately not.
 - **The visualizer** (`src/lib/stepper.ts`) records variable state and the call
   stack per line, so you can scrub through execution the way Python Tutor does.
-- **Checks** are JS expressions evaluated against the captured output with
-  `new Function` — `output.includes("after add: 2 ship")`. Wrong text fails even
-  if the code was right, which is the point: you're being graded on behaviour.
+- **Checks** are small expressions evaluated against the captured output —
+  `output.includes("after add: 2 ship")`. They're parsed and interpreted by
+  `src/lib/checkExpr.ts` rather than compiled with `new Function`, so the
+  grading language is exactly the whitelisted vocabulary (string methods,
+  comparisons, booleans) and anything else fails closed instead of running.
+  Wrong text fails even if the code was right, which is the point: you're
+  being graded on behaviour.
 
 ## Tech stack
 
