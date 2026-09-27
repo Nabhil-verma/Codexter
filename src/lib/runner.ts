@@ -1,3 +1,5 @@
+import { evaluateCheckExpression } from "./checkExpr";
+
 export type RunResult = {
   logs: string[];
   error: string | null;
@@ -7,6 +9,14 @@ export type RunResult = {
  * Runs user JavaScript with console captured, an infinite-loop guard,
  * full async support (timers/promises awaited before returning), and a
  * mock REST server mounted on `fetch` for the API lessons.
+ *
+ * Trust boundary: running the learner's own code is the product, so unlike
+ * `evaluateCheck` this path deliberately compiles it — inside the page's own
+ * realm, which is what keeps console capture, the loop guard and the trace
+ * hooks synchronous. Lesson code is therefore untrusted input that can still
+ * reach page globals; do not expose anything new to it, and note that moving
+ * this execution into an opaque-origin frame/worker would make the API async
+ * (worth doing, but a separate, larger change).
  */
 export async function runUserCode(code: string, timeoutMs = 4000): Promise<RunResult> {
   const logs: string[] = [];
@@ -259,12 +269,16 @@ function makeMockFetch(log: (...a: unknown[]) => void, pending: Promise<unknown>
   };
 }
 
+/**
+ * Grade captured output against a curriculum check expression.
+ *
+ * This is the grading primitive and it no longer compiles anything: the
+ * expression is parsed against a whitelist grammar in checkExpr.ts and the
+ * syntax tree is walked directly. A check expression can therefore never
+ * reach `localStorage`, the DOM or `fetch`, and an unrecognised expression
+ * fails closed. (Running the learner's *own* code is a separate, deliberate
+ * path — `runUserCode` above — where execution is the product.)
+ */
 export function evaluateCheck(expr: string, output: string): boolean {
-  try {
-    // eslint-disable-next-line no-new-func
-    const fn = new Function("output", `"use strict"; return (${expr});`);
-    return Boolean(fn(output));
-  } catch {
-    return false;
-  }
+  return evaluateCheckExpression(expr, output);
 }

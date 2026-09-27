@@ -20,7 +20,7 @@ const AVATAR_SIZES = {
   xl: "h-28 w-28 text-3xl",
 } as const;
 
-export type AvatarSize = keyof typeof AVATAR_SIZES;
+type AvatarSize = keyof typeof AVATAR_SIZES;
 
 function initialsOf(name: string): string {
   return (

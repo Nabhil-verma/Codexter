@@ -37,7 +37,7 @@ export type PredictStep = {
  * A drag-to-order puzzle: the learner reconstructs a sequence (box model layers,
  * middleware pipeline, exception block) instead of reading it.
  */
-export type SortChallenge = {
+type SortChallenge = {
   prompt: string;
   /** The correct order, top to bottom. */
   items: string[];

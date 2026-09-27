@@ -34,7 +34,7 @@ export function authMessage(err: unknown): string {
  * function for 'clans:mine'", "Server Error") means nothing to a beginner, so
  * every panel and the app-level crash card read their copy from here.
  */
-export type PanelMessage = {
+type PanelMessage = {
   /** short headline, sentence case */
   title: string;
   /** what it means for the learner, and what to do */

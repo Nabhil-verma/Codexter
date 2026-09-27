@@ -15,7 +15,7 @@ function lessonXp(score: number): number {
 
 /* ---------------- Day buckets: XP grouped by calendar day ---------------- */
 
-export type DayBucket = {
+type DayBucket = {
   /** `YYYY-MM-DD`, or "" for legacy keys with no date stamp */
   day: string;
   /** lessons whose best score landed on this day */
@@ -58,7 +58,7 @@ export function lessonXpTotal(progress: Progress): number {
  * the progress map, so bonus XP is deterministic across devices and never
  * awarded twice. `bonus` is the real XP paid for finishing the quest.
  */
-export type QuestDef = {
+type QuestDef = {
   id: string;
   icon: string;
   title: string;
@@ -194,7 +194,7 @@ export function playerXp(progress: Progress, bonusXp = 0): number {
 
 /* ------------------ Daily quest board (today's view) ------------------ */
 
-export type QuestView = {
+type QuestView = {
   id: string;
   icon: string;
   title: string;
@@ -480,7 +480,7 @@ export type Badge = {
   description: string;
 };
 
-export type EarnedBadge = Badge & { earned: boolean };
+type EarnedBadge = Badge & { earned: boolean };
 
 const ALL_BADGES: Badge[] = [
   { id: "first-steps", icon: "①", title: "First Steps", description: "Complete your first lesson." },
@@ -499,7 +499,7 @@ const ALL_BADGES: Badge[] = [
 ];
 
 /** Context the progress map can't express on its own. */
-export type BadgeContext = {
+type BadgeContext = {
   level?: number;
   clanRole?: "none" | "member" | "officer" | "owner";
 };

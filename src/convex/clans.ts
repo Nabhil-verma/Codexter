@@ -93,7 +93,7 @@ async function membersOf(
 
 export type ClanRole = "owner" | "officer" | "member";
 
-export type ClanMember = {
+type ClanMember = {
   userId: Id<"users">;
   name: string;
   xp: number;

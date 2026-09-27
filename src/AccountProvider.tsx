@@ -45,10 +45,10 @@ import {
   xpInRange,
 } from "./lib/gamification";
 
-export type SyncState = "idle" | "syncing" | "synced" | "error";
+type SyncState = "idle" | "syncing" | "synced" | "error";
 
 /** Minimal user shape the UI needs — no vendor types leak into components. */
-export type AccountUser = { displayName: string; email: string };
+type AccountUser = { displayName: string; email: string };
 
 type AccountCtx = {
   user: AccountUser | null;

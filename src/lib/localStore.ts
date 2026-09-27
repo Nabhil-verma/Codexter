@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 /* shared, so "storage is broken" can only ever be handled one way.     */
 /* ------------------------------------------------------------------ */
 
-export type LocalStore<T> = {
+type LocalStore<T> = {
   /** Versioned storage key, e.g. `clr-progress-v2`. */
   key: string;
   /** Current value; never throws, even with no storage or corrupt JSON. */
