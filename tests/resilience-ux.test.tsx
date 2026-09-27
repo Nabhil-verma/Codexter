@@ -186,10 +186,19 @@ describe("quick practice", () => {
     render(<MicroPractice />);
     const card = assemblyCard();
 
-    // Break the order on purpose: swap the first two rows.
-    fireEvent.click(screen.getByRole("button", { name: "Move line 1 down" }));
+    // The card opens on a random arrangement (never the solved one), so the
+    // wrong order is built rather than assumed. Swapping the rendered first
+    // two rows instead used to *fix* the puzzle whenever the shuffle had
+    // already produced that order — a 1-in-6 flake; transposing the first two
+    // lines makes row 1 provably the first one out of place.
+    arrangeTo(card, [
+      "  console.log(i);",
+      "for (let i = 1; i <= 5; i++) {",
+      "}",
+    ]);
     fireEvent.click(screen.getByRole("button", { name: "Check order" }));
-    expect(screen.getByText(/is the first one out of place/)).toBeTruthy();
+    expect(screen.getByText(/Line 1 is the first one out of place/)).toBeTruthy();
+    expect(screen.queryByText(/✓ correct/)).toBeNull();
 
     // Then put it in the correct run order.
     arrangeTo(card, [
@@ -201,6 +210,27 @@ describe("quick practice", () => {
     expect(screen.getByText(/✓ correct/)).toBeTruthy();
     expect(screen.getByText(/The for header sets up the counter/)).toBeTruthy();
     expect(screen.getByText(/1 solved/)).toBeTruthy();
+  });
+
+  it("moves a line both ways with the arrow buttons", () => {
+    render(<MicroPractice />);
+    const card = assemblyCard();
+
+    const before = rowsOf(card).map(lineIn);
+    fireEvent.click(screen.getByRole("button", { name: "Move line 2 down" }));
+    expect(rowsOf(card).map(lineIn)).toEqual([before[0], before[2], before[1]]);
+    // Labels are positional, so the inverse of moving row 2 down is moving
+    // the row that took its place (now row 3) back up.
+    fireEvent.click(screen.getByRole("button", { name: "Move line 3 up" }));
+    expect(rowsOf(card).map(lineIn)).toEqual(before);
+
+    // The ends can't move outward.
+    expect(
+      screen.getByRole("button", { name: "Move line 1 up" }).hasAttribute("disabled")
+    ).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Move line 3 down" }).hasAttribute("disabled")
+    ).toBe(true);
   });
 
   it("grades a spot-the-bug question on the broken line, not a reveal button", () => {

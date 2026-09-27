@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { shuffled } from "../lib/shuffle";
 
 /* ═══════════════════════════════════════════════════════════════
    Quick practice: six short exercises (rebuild code, match
@@ -146,15 +147,6 @@ const LABELS: Record<PracticeQ["type"], string> = {
   spot: "spot the bug",
 };
 
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 /* ───────────────────────── chance to ask for help ───────────────────────── */
 
 function HintRow({ hint, open, onToggle }: { hint: string; open: boolean; onToggle: () => void }) {
@@ -191,7 +183,8 @@ function Solved({ children }: { children: string }) {
 /* ───────────────────────────── assembly card ───────────────────────────── */
 
 function AssemblyCard({ q, onSolved }: { q: AssemblyQ; onSolved: () => void }) {
-  const [order, setOrder] = useState(() => shuffle(q.lines));
+  // `shuffled` guarantees the card never opens in the runnable order.
+  const [order, setOrder] = useState(() => shuffled(q.lines));
   const [checked, setChecked] = useState(false);
   const correct = order.every((line, i) => line === q.lines[i]);
   const firstWrong = order.findIndex((line, i) => line !== q.lines[i]);
@@ -277,8 +270,8 @@ function AssemblyCard({ q, onSolved }: { q: AssemblyQ; onSolved: () => void }) {
 
 function MatchingCard({ q, onSolved }: { q: MatchingQ; onSolved: () => void }) {
   const pairs = q.pairs;
-  const [lefts] = useState(() => shuffle(pairs.map((p) => p[0])));
-  const [rights] = useState(() => shuffle(pairs.map((p) => p[1])));
+  const [lefts] = useState(() => shuffled(pairs.map((p) => p[0])));
+  const [rights] = useState(() => shuffled(pairs.map((p) => p[1])));
   const [selL, setSelL] = useState<string | null>(null);
   const [matched, setMatched] = useState<Set<string>>(new Set());
   const [wrong, setWrong] = useState<string | null>(null);
