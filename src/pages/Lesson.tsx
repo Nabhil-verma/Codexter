@@ -7,6 +7,9 @@ import LessonBody from "../components/LessonBody";
 import Playground from "../components/Playground";
 import CssSandbox from "../components/CssSandbox";
 import DebugLab from "../components/DebugLab";
+import DiffLab from "../components/DiffLab";
+import RepoLab from "../components/RepoLab";
+import Rubric from "../components/Rubric";
 import LivePreview from "../components/LivePreview";
 import GitSim from "../components/GitSim";
 import PredictOutput from "../components/PredictOutput";
@@ -65,7 +68,7 @@ export default function Lesson() {
    * Section numerals are derived from which parts actually render, so adding
    * or removing an interactive block never leaves duplicate or skipped steps.
    */
-  const ROMAN = ["Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ"];
+  const ROMAN = ["Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ", "Ⅷ", "Ⅸ", "Ⅹ"];
   const runKind = lesson.starter
     ? "Run"
     : lesson.sandbox
@@ -79,14 +82,23 @@ export default function Lesson() {
     ...(lesson.sort ? ["Sequence"] : []),
     ...(lesson.debug ? ["Debug"] : []),
     ...(lesson.preview ? ["Build"] : []),
+    ...(lesson.diff ? ["Review"] : []),
+    ...(lesson.repo ? ["Trace"] : []),
+    ...(lesson.rubric ? ["Write"] : []),
     "Prove it",
     ...(lesson.starter ? ["Solutions"] : []),
   ];
   const step = (name: string) =>
     ROMAN[STEPS.indexOf(name)] ?? ROMAN[0];
 
+  /*
+   * Partial credit is recorded — the best score per lesson wins — while
+   * completion still requires a full score. A 0.5 diagnosis or a 0.4/0.7
+   * review attempt is visible on the progress map and earns its lesson XP,
+   * but the lesson stays incomplete until the exercise is genuinely solved.
+   */
   const handleScore = (score: number) => {
-    if (score >= 1) record(key, 1, todayKey());
+    if (score > 0) record(key, score, todayKey());
   };
 
   const completed = scoreFor(progressState, key) >= 1;
@@ -95,7 +107,7 @@ export default function Lesson() {
     <div className="min-h-screen">
       <Nav />
       <PageFade>
-      <main className="mx-auto max-w-3xl px-4 py-12">
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
         <motion.p
           className="font-mono text-xs text-ink-600"
           initial={{ opacity: 0, y: -8 }}
@@ -129,13 +141,19 @@ export default function Lesson() {
                   : "interactive"
               : lesson.debug
                 ? "break & fix"
-                : lesson.preview
-                  ? "live build"
-                  : lesson.gitSim
-                    ? "terminal"
-                    : lesson.sandbox
-                      ? "visual"
-                      : "reading"}
+                : lesson.diff
+                  ? "diff review"
+                  : lesson.repo
+                    ? "repo trace"
+                    : lesson.rubric
+                      ? "written"
+                      : lesson.preview
+                        ? "live build"
+                        : lesson.gitSim
+                          ? "terminal"
+                          : lesson.sandbox
+                            ? "visual"
+                            : "reading"}
           </span>
           <span className="text-gold-500">·</span>
           {completed ? (
@@ -206,6 +224,7 @@ export default function Lesson() {
               <DebugLab
                 challenge={lesson.debug}
                 onPass={() => setExerciseDone(true)}
+                onScore={handleScore}
               />
             </section>
           </Reveal>
@@ -218,6 +237,48 @@ export default function Lesson() {
               <h2 className="eyebrow mb-4">{step("Build")} · Build</h2>
               <LivePreview
                 spec={lesson.preview}
+                onPass={() => setExerciseDone(true)}
+              />
+            </section>
+          </Reveal>
+        )}
+
+        {/* 2.45 Review — multi-file pull request, partial-credit ladder */}
+        {lesson.diff && (
+          <Reveal className="mt-14">
+            <section>
+              <h2 className="eyebrow mb-4">{step("Review")} · Review</h2>
+              <DiffLab
+                exercise={lesson.diff}
+                onScore={handleScore}
+                onPass={() => setExerciseDone(true)}
+              />
+            </section>
+          </Reveal>
+        )}
+
+        {/* 2.46 Trace — codebase archaeology in a read-only snapshot */}
+        {lesson.repo && (
+          <Reveal className="mt-14">
+            <section>
+              <h2 className="eyebrow mb-4">{step("Trace")} · Trace</h2>
+              <RepoLab
+                exercise={lesson.repo}
+                onScore={handleScore}
+                onPass={() => setExerciseDone(true)}
+              />
+            </section>
+          </Reveal>
+        )}
+
+        {/* 2.47 Write — written deliverable, rubric-graded */}
+        {lesson.rubric && (
+          <Reveal className="mt-14">
+            <section>
+              <h2 className="eyebrow mb-4">{step("Write")} · Write</h2>
+              <Rubric
+                exercise={lesson.rubric}
+                onScore={handleScore}
                 onPass={() => setExerciseDone(true)}
               />
             </section>
@@ -308,11 +369,13 @@ export default function Lesson() {
         )}
 
         {/* Prev / next */}
-        <nav className="mt-16 flex items-center justify-between gap-3 border-t border-paper-200 pt-8">
+        {/* On phones the two actions stack — full-width, thumb-sized buttons
+            with the primary action on top — and go back to a row from sm up. */}
+        <nav className="mt-16 flex flex-col-reverse gap-3 border-t border-paper-200 pt-8 sm:flex-row sm:items-center sm:justify-between">
           {prev ? (
             <Link
               to={"/learn/" + track.id + "/" + prev.id}
-              className="btn-ghost !px-5 !py-2 text-sm"
+              className="btn-ghost w-full justify-center !px-5 !py-2.5 text-sm sm:w-auto"
             >
               ← {prev.title}
             </Link>
@@ -322,12 +385,12 @@ export default function Lesson() {
           {next ? (
             <Link
               to={"/learn/" + track.id + "/" + next.id}
-              className="btn-primary !px-5 !py-2 text-sm"
+              className="btn-primary w-full justify-center !px-5 !py-2.5 text-sm sm:w-auto"
             >
               {next.title} →
             </Link>
           ) : (
-            <Link to="/learn" className="btn-gold !px-5 !py-2 text-sm">
+            <Link to="/learn" className="btn-gold w-full justify-center !px-5 !py-2.5 text-sm sm:w-auto">
               Finish track 🎉
             </Link>
           )}

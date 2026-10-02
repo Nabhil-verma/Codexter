@@ -1,3 +1,5 @@
+import type { TaxonomyCode } from "./bug-taxonomy";
+
 export type Check = {
   /** JS expression evaluated against the user's `output`; must return truthy to pass */
   expr: string;
@@ -77,6 +79,15 @@ export type DebugChallenge = {
   solution: string;
   /** reference repair, executed by the test suite */
   fix: string;
+  /**
+   * Optional taxonomy diagnosis: a right diagnosis without a full repair
+   * records partial credit (0.5); a working repair earns 1.0.
+   */
+  diagnosis?: {
+    prompt: string;
+    codes: TaxonomyCode[];
+    answer: TaxonomyCode;
+  };
 };
 
 /**
@@ -97,6 +108,99 @@ export type PreviewSpec = {
   requires?: string[];
   /** Tailwind's Play CDN is injected unless this is "none" */
   framework?: "tailwind" | "none";
+};
+
+/* ------------------------------------------------------------------ */
+/* V2.1 lab elements — multi-file review, repo tracing, written work   */
+/* ------------------------------------------------------------------ */
+
+/** One file as it appears in a pull request: before → after. */
+export type DiffFile = {
+  path: string;
+  /** the file before the change; omit for a brand-new file */
+  before?: string;
+  /** the resulting file — the surface the learner reviews and clicks */
+  after: string;
+};
+
+/**
+ * A multi-file review exercise. Exactly one blocking defect is planted
+ * somewhere in the `after` side; `distractors` names the changes that look
+ * suspicious but are correct (at least one of them lives in the same file
+ * as the blocker, so file-level heuristics can't win).
+ */
+export type DiffExercise = {
+  id: string;
+  title: string;
+  /** the agent's PR description — plausible, not necessarily true */
+  brief: string;
+  files: DiffFile[];
+  planted: {
+    file: string;
+    /** 1-based line on the `after` side */
+    line: number;
+    category: TaxonomyCode;
+    /** reference reasoning, revealed after the attempt */
+    why: string;
+  };
+  distractors: string[];
+  hints: Hint[];
+};
+
+/** A read-only repo snapshot for tracing exercises. */
+export type RepoFile = { path: string; content: string };
+
+export type RepoQuestion =
+  | {
+      kind: "locate";
+      prompt: string;
+      /** every file/symbol pair the learner may choose from */
+      choices: { file: string; symbol: string }[];
+      answer: { file: string; symbol: string };
+      why: string;
+    }
+  | {
+      kind: "select";
+      prompt: string;
+      /** multi-select: exact-set scoring, with per-option credit */
+      options: { label: string; correct: boolean }[];
+      why: string;
+    };
+
+/** Repo archaeology: read a codebase you've never seen, then answer. */
+export type RepoExercise = {
+  id: string;
+  title: string;
+  brief: string;
+  files: RepoFile[];
+  questions: RepoQuestion[];
+};
+
+/**
+ * A written deliverable graded by rubric. Auto-checkable criteria run the
+ * existing check grammar over the learner's text (lower-cased) bound as
+ * `output`; criteria without a `check` are self-attested judgment calls.
+ * The lesson is complete only when every criterion is met.
+ */
+export type RubricCriterion = {
+  id: string;
+  label: string;
+  /** expression over `output` (the lower-cased learner text) */
+  check?: string;
+  /** relative weight; defaults to 1 */
+  weight?: number;
+};
+
+export type RubricExercise = {
+  id: string;
+  title: string;
+  /** what to write, in one line */
+  prompt: string;
+  brief: string;
+  minWords?: number;
+  criteria: RubricCriterion[];
+  /** revealed after the first submission */
+  exemplar: string;
 };
 
 export type Lesson = {
@@ -120,6 +224,12 @@ export type Lesson = {
   predict?: PredictStep[];
   /** Drag-and-drop ordering challenge shown before the quiz */
   sort?: SortChallenge;
+  /** Multi-file pull-request review (V2.1 diff/click grader) */
+  diff?: DiffExercise;
+  /** Repo archaeology: locate behaviour in an unfamiliar codebase */
+  repo?: RepoExercise;
+  /** Written deliverable graded by rubric (auto checks + judgment) */
+  rubric?: RubricExercise;
   /** Markdown-lite: paragraphs separated by \n\n, `code`, **bold**, and ```fenced``` blocks */
   body: string;
   starter?: string;

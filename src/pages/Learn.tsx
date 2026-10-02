@@ -54,7 +54,7 @@ export default function Learn() {
     <div className="min-h-screen">
       <Nav />
       <PageFade>
-        <main className="mx-auto max-w-4xl px-4 py-16">
+        <main className="mx-auto max-w-4xl px-4 py-10 sm:py-16">
           <Reveal>
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>

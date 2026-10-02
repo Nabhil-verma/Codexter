@@ -1,5 +1,12 @@
 # Curriculum V2 — Judgment Over Authorship
 
+> **Patched.** [CURRICULUM-V2-PATCH.md](./CURRICULUM-V2-PATCH.md) (V2.1) is the
+> execution & operating patch: executed Python, multi-file diff review with
+> partial credit, codebase archaeology, agent-configuration lessons, production
+> debugging, AI data boundaries, a validated Next.js decision, and project
+> milestones reworked around agent tasks, notes, and proof tests. Where the
+> patch disagrees with this document, the patch wins.
+
 The next version of Codexter's curriculum. Its single organizing idea: every
 track trains **judgment over AI output**, not just authorship of code. The
 canonical exercise becomes *"Here is AI-written code. Something is wrong with

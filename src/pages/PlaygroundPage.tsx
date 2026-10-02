@@ -123,7 +123,7 @@ export default function PlaygroundPage() {
     <div className="min-h-screen">
       <Nav />
       <PageFade>
-      <main className="mx-auto max-w-4xl px-4 py-12">
+      <main className="mx-auto max-w-4xl px-4 py-8 sm:py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

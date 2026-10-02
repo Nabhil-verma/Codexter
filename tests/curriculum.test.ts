@@ -8,11 +8,11 @@ const allLessons = tracks.flatMap((t) =>
 );
 
 describe("curriculum integrity", () => {
-  it("has fifteen tracks", () => {
-    expect(tracks).toHaveLength(15);
+  it("has sixteen tracks", () => {
+    expect(tracks).toHaveLength(16);
   });
 
-  it("covers all fifteen planned curriculum areas", () => {
+  it("covers all sixteen planned curriculum areas", () => {
     expect(tracks.map((t) => t.id)).toEqual([
       "web",
       "react",
@@ -29,6 +29,7 @@ describe("curriculum integrity", () => {
       "api",
       "typescript",
       "performance",
+      "agents",
     ]);
   });
 

@@ -1,6 +1,6 @@
 # Codexter
 
-> **A 100% free, interactive code teacher.** Fifteen tracks, 86 hands-on lessons —
+> **A 100% free, interactive code teacher.** Sixteen tracks, 95 hands-on lessons —
 > you write and run real code from minute one, in the browser, with easy signup.
 
 **Live:** [nnghedico.freebuff.app](https://nnghedico.freebuff.app)
@@ -63,11 +63,13 @@ A few consequences worth calling out, because they're unusual for a learning app
 
 ## Feature overview
 
-- **15 curriculum tracks, 86 lessons** — Web foundations, React, Tailwind UI
+- **16 curriculum tracks, 95 lessons** — Web foundations, React, Tailwind UI
   engineering, advanced React state, API integration, TypeScript for real
   projects, backend/Node, DSA, Python, Git & testing, DevOps/Linux/Docker, web
-  security (OWASP), system design, web performance & accessibility, and
-  debugging/testing practice
+  security (OWASP), system design, web performance & accessibility,
+  debugging/testing practice, and **working with coding agents** (the V2.1
+  judgment track: specs, codebase archaeology, instruction files, plan
+  approval, permissions, multi-file diff review, and an agent-loop capstone)
 - **Live sandbox runner** — every lesson has an editor + console with
   self-checking exercises, "predict the output" challenges, and an
   infinite-loop guard
@@ -358,7 +360,7 @@ src/
 ├── data/
 │   ├── index.ts              # the track registry + findTrack/findLesson
 │   ├── types.ts              # Lesson, Check, DebugChallenge, PreviewSpec, …
-│   └── track-*.ts            # 15 tracks, 86 lessons of content
+│   └── track-*.ts            # 16 tracks, 95 lessons of content
 ├── lib/
 │   ├── localStore.ts         # the shared localStorage store + pub/sub primitive
 │   ├── progress.ts           # progress store on top of it, v1→v2 migration
@@ -377,7 +379,7 @@ src/
 │   └── clan/                 # guild feed + quest panel
 └── pages/                    # Landing, Learn, Lesson, Playground, Certificate,
                              # Projects, Portfolio, Leaderboard, Clans, Auth
-tests/                        # 20 suites, 200 tests
+tests/                        # 26 suites, 257 tests
 ```
 
 ## Accounts, progress & cloud sync
@@ -440,11 +442,15 @@ you run the code to find out.
 npm test        # or: bun x vitest run
 ```
 
-**200 tests across 20 files.** The content tests are the interesting ones,
+**257 tests across 26 files.** The content tests are the interesting ones,
 because content is where bugs hide:
 
 - Every broken debug program fails its own check, every reference fix passes it,
   and no challenge is secretly a syntax error
+- Every diff-review exercise plants a defect that exists inside the after-side
+  of a named file, ships ≥2 distractors with one near the blocker, and grades
+  on the partial-credit ladder (0 / 0.4 / 0.7 / 1.0) — and every rubric is
+  satisfiable by its own exemplar in the check grammar
 - No starter is pre-solved, every check is satisfiable, every exercise has a
   full three-tier hint ladder
 - Milestone gates derive from real progress, stale claims are not earned, and
@@ -545,7 +551,18 @@ unaffected.
   the judgment-over-authorship exercise format, the shared AI-bug taxonomy,
   five new tracks (coding agents, building with LLMs, SQL, professional
   workflow, and an interview-prep capstone), the grader verification, and the
-  auditable diff against today's 15 tracks
+  auditable diff against the 15 tracks it was written against (the app now
+  ships 16 — the agents track is the first V2 track to land)
+- **[CURRICULUM-V2-PATCH.md](./CURRICULUM-V2-PATCH.md)** — the V2.1 patch:
+  executed Python via Pyodide, multi-file diff review with partial credit,
+  codebase archaeology, operating-agent lessons (instruction files, plans,
+  permissions), production debugging, AI data boundaries, a validated Next.js
+  decision, and the milestone redesign around agent tasks, notes, and proof
+  tests — plus what ships as the two-item pilot
+- **[CURRICULUM-V2-PILOT-PROPOSAL.md](./CURRICULUM-V2-PILOT-PROPOSAL.md)** —
+  the pilot's status report and execution record: the seed-order reconciliation,
+  the three Wave 0 deliverables (partial-credit recording, the diff/click
+  grader, Track XVI end-to-end), the exit gates, and what remains closed
 
 ## License
 

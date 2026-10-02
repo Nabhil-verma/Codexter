@@ -125,6 +125,25 @@ body {
   background: rgb(var(--ink-300));
 }
 
+/* Horizontal strips (the phone nav row) scroll without a visible track. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * Phone shell: while the bottom tab bar is mounted (MobileTabBar tags <html>),
+ * every page keeps scroll room so the bar never covers its last row.
+ */
+@media (max-width: 767px) {
+  html.has-tabbar main {
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+  }
+}
+
 @layer components {
   .btn-primary {
     @apply inline-flex items-center gap-2 rounded-full bg-ink-950 px-6 py-2.5 font-semibold text-paper-50 transition hover:bg-ink-800 hover:shadow-lift focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400;

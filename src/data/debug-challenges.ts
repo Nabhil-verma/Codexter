@@ -272,6 +272,157 @@ const sorted = [...scores].sort((a, b) => a - b);
 console.log("sorted:", sorted.join(","));
 console.log("original:", scores.join(","));`,
   },
+  {
+    id: "csv-quoted-fields",
+    title: "The Parser That Trusted Commas",
+    brief:
+      "The comment says it handles quoted fields and embedded commas. Three rows go in; the field counts that come out say otherwise. Row 2 is the quiet one.",
+    broken: `function parseCSV(text) {
+  // handles quoted fields and embedded commas — tested
+  return text.trim().split("\\n").map((line) => line.split(","));
+}
+
+const rows = parseCSV('name,note\\n"Doe, Jane",hello\\nAda,');
+
+rows.forEach((fields, i) => {
+  console.log("row", i, "fields:", fields.length, JSON.stringify(fields));
+});`,
+    fixCheck: `output.includes('row 0 fields: 2 ["name","note"]') && output.includes('row 1 fields: 2 ["Doe, Jane","hello"]') && output.includes('row 2 fields: 2 ["Ada",""]')`,
+    win: "A parser, not a splitter: quotes are state, not characters. Every row now has the field count the data actually has.",
+    hints: [
+      h(1, "Compare each printed field count with the raw row. Which value was supposed to be a single field but isn't?",),
+      h(2, "A bare split(',') cannot tell a separator comma from a comma inside quotes — and an empty trailing field disappears when you trim and split."),
+      h(3, "Walk the text character by character and track whether you are inside quotes; also emit a field when the line ends, even if it is empty."),
+    ],
+    solution:
+      "`split(',')` has no concept of quoting, so the embedded comma in \"Doe, Jane\" becomes a separator (3 fields instead of 2), and `trim()` plus a naive split drops the empty trailing field on row 2 (1 field instead of 2). The fix is a real (small) parser: iterate the characters, keep a `quoted` flag, treat `\"\"` as an escaped quote, and push the pending field when a line ends — empty or not. Quoted-field parsing is the canonical lesson in why parsing text with `split` is a trap.",
+    fix: `function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let quoted = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') {
+        field += '"';
+        i++;
+      } else if (ch === '"') {
+        quoted = false;
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      quoted = true;
+    } else if (ch === ",") {
+      row.push(field);
+      field = "";
+    } else if (ch === "\\n") {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += ch;
+    }
+  }
+
+  if (field !== "" || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+const rows = parseCSV('name,note\\n"Doe, Jane",hello\\nAda,');
+
+rows.forEach((fields, i) => {
+  console.log("row", i, "fields:", fields.length, JSON.stringify(fields));
+});`,
+    diagnosis: {
+      prompt: "What kind of defect is this?",
+      codes: ["SL", "EC", "RC", "CX"],
+      answer: "SL",
+    },
+  },
+  {
+    id: "debounced-search-queue",
+    title: "The Queue That Answered Backwards",
+    brief:
+      "An agent-drafted search queue with two defects. In the log you can see a request nobody wanted, and a final value that belongs to an older query.",
+    broken: `const log = [];
+let applied = [];
+
+function fetchResults(query) {
+  const latency = (5 - query.length) * 30;
+  log.push("request: " + JSON.stringify(query));
+  return new Promise((resolve) =>
+    setTimeout(() => resolve([query + "-result"]), latency)
+  );
+}
+
+function search(query) {
+  fetchResults(query).then((items) => {
+    applied = items;
+    console.log("applied:", applied.join(","));
+  });
+}
+
+search("a");
+search("");
+search("alp");
+
+setTimeout(() => {
+  console.log("requests:", log.join(" | "));
+  console.log("final:", applied.join(","));
+}, 250);`,
+    fixCheck: `!output.includes('request: ""') && output.includes("final: alp-result")`,
+    win: "Two fixes, one loop: the empty query never becomes a request, and only the newest response is allowed to become state.",
+    hints: [
+      h(1, "Read the request log first, then watch the order the results land in. Which query's results survive, and should they?",),
+      h(2, "Two separate defects: one request should never have been made, and responses arrive out of order — a slow early query can overwrite a fast later one."),
+      h(3, "Return early when the query is falsy, then stamp each request with an id and drop any response whose id is not the latest."),
+    ],
+    solution:
+      "Two planted bugs, one shape. (1) The empty string is a valid input to the queue but not a valid query: `search('')` fires a network request for nothing and its (slow) response can even win. Return early on a falsy query. (2) Responses have no identity, so a slower earlier request can resolve after a faster later one and overwrite fresher state — classic staleness. Keep an incrementing request id and ignore any response that is not the newest. Both are the same discipline: decide *before* doing work whether the work should happen at all.",
+    fix: `const log = [];
+let applied = [];
+let latest = 0;
+
+function fetchResults(query) {
+  const latency = (5 - query.length) * 30;
+  log.push("request: " + JSON.stringify(query));
+  return new Promise((resolve) =>
+    setTimeout(() => resolve([query + "-result"]), latency)
+  );
+}
+
+function search(query) {
+  if (!query) return;            // empty query: no request at all
+  const id = ++latest;
+  fetchResults(query).then((items) => {
+    if (id !== latest) return;   // stale response: drop it
+    applied = items;
+    console.log("applied:", applied.join(","));
+  });
+}
+
+search("a");
+search("");
+search("alp");
+
+setTimeout(() => {
+  console.log("requests:", log.join(" | "));
+  console.log("final:", applied.join(","));
+}, 250);`,
+    diagnosis: {
+      prompt: "What is the primary category of this draft's defects?",
+      codes: ["RC", "EC", "SL", "CX"],
+      answer: "RC",
+    },
+  },
 ];
 
 const BY_ID = new Map(DEBUG_CHALLENGES.map((c) => [c.id, c]));

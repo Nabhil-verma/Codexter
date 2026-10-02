@@ -14,6 +14,7 @@ import { stateTrack } from "./track-state";
 import { apiTrack } from "./track-api";
 import { typescriptTrack } from "./track-typescript";
 import { performanceTrack } from "./track-performance";
+import { agentsTrack } from "./track-agents";
 
 export type { Track, Lesson } from "./types";
 export type { Check, QuizQuestion } from "./types";
@@ -34,6 +35,7 @@ export const tracks: Track[] = [
   apiTrack,
   typescriptTrack,
   performanceTrack,
+  agentsTrack,
 ];
 
 export function findTrack(trackId: string) {

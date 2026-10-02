@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useScroll, useMotionValueEvent } from "framer-
 import { useAccount } from "../AccountProvider";
 import AiSettingsModal from "./AiSettingsModal";
 import ThemeToggle from "./ThemeToggle";
+import MobileTabBar from "./MobileTabBar";
 import { lessonIdOf, useProgressState } from "../lib/progress";
 import { totalLessonCount } from "../data";
 
@@ -21,33 +22,18 @@ const syncDot: Record<string, string> = {
   error: "bg-red-500",
 };
 
+/*
+ * Every destination lives in the bar at every width now — on phones the strip
+ * scrolls horizontally instead of hiding entries, and the thumb-sized
+ * MobileTabBar below carries the five most-used ones.
+ */
 const links = [
   { to: "/learn", label: "Lessons", active: (p: string) => p.startsWith("/learn") },
   { to: "/playground", label: "Playground", active: (p: string) => p.startsWith("/playground") },
-  {
-    to: "/projects",
-    label: "Projects",
-    active: (p: string) => p.startsWith("/projects"),
-    hideOnMobile: true,
-  },
-  {
-    to: "/leaderboard",
-    label: "Leaderboard",
-    active: (p: string) => p.startsWith("/leaderboard"),
-    hideOnMobile: true,
-  },
-  {
-    to: "/clans",
-    label: "Guilds",
-    active: (p: string) => p.startsWith("/clans"),
-    hideOnMobile: true,
-  },
-  {
-    to: "/portfolio",
-    label: "Profile",
-    active: (p: string) => p.startsWith("/portfolio"),
-    hideOnMobile: true,
-  },
+  { to: "/projects", label: "Projects", active: (p: string) => p.startsWith("/projects") },
+  { to: "/leaderboard", label: "Leaderboard", active: (p: string) => p.startsWith("/leaderboard") },
+  { to: "/clans", label: "Guilds", active: (p: string) => p.startsWith("/clans") },
+  { to: "/portfolio", label: "Profile", active: (p: string) => p.startsWith("/portfolio") },
 ];
 
 export default function Nav() {
@@ -78,6 +64,7 @@ export default function Nav() {
   ).size;
 
   return (
+    <>
     <motion.header
       className={
         "sticky top-0 z-40 border-b transition-all duration-300 " +
@@ -89,8 +76,8 @@ export default function Nav() {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link to="/" className="group flex items-center gap-2.5">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-3 px-4 md:h-16 md:flex-nowrap">
+        <Link to="/" className="group flex h-14 shrink-0 items-center gap-2.5 md:h-16">
           <motion.span
             className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-950 font-mono text-xs font-bold text-gold-400"
             whileHover={{
@@ -106,34 +93,7 @@ export default function Nav() {
           </span>
         </Link>
 
-        <nav aria-label="Main" className="flex items-center gap-1.5 text-sm">
-          {links.map((l) => (
-            <Link
-              key={l.to}
-              to={l.to}
-              className={
-                "relative rounded-full px-4 py-1.5 font-medium transition " +
-                (l.hideOnMobile ? "hidden sm:inline-block " : "") +
-                (l.active(location.pathname)
-                  ? "text-paper-50"
-                  : "text-ink-700 hover:text-ink-950")
-              }
-            >
-              {l.active(location.pathname) && (
-                <motion.span
-                  layoutId="nav-pill"
-                  className="absolute inset-0 rounded-full bg-ink-950 shadow-lift"
-                  transition={{ type: "spring", stiffness: 380, damping: 32 }}
-                />
-              )}
-              <span className="relative z-10">{l.label}</span>
-            </Link>
-          ))}
-
-          <span className="hidden items-center gap-1.5 rounded-full border border-paper-200/70 bg-paper-50/50 px-3 py-1.5 font-mono text-xs text-ink-600 sm:flex">
-            <span className="gradient-text font-bold">{done}</span>/{totalLessonCount} done
-          </span>
-
+        <div className="flex h-14 shrink-0 items-center gap-1.5 md:order-last md:h-16">
           <ThemeToggle />
 
           <button
@@ -217,9 +177,48 @@ export default function Nav() {
                 Sign in
               </Link>
             ))}
+        </div>
+
+        {/* On phones this wraps to its own full-bleed row and scrolls sideways;
+            from md up it slots back between the brand and the actions — still
+            scrollable in that middle slot, because six links plus the progress
+            pill overflow a 768px viewport. */}
+        <nav
+          aria-label="Main"
+          className="no-scrollbar order-last -mx-4 w-[calc(100%+2rem)] overflow-x-auto px-4 pb-2.5 text-sm md:order-none md:mx-0 md:w-auto md:min-w-0 md:flex-1 md:pb-0"
+        >
+          <div className="flex items-center gap-1.5 md:ml-auto">
+            {links.map((l) => (
+              <Link
+                key={l.to}
+                to={l.to}
+                className={
+                  "relative shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 font-medium transition " +
+                  (l.active(location.pathname)
+                    ? "text-paper-50"
+                    : "text-ink-700 hover:text-ink-950")
+                }
+              >
+                {l.active(location.pathname) && (
+                  <motion.span
+                    layoutId="nav-pill"
+                    className="absolute inset-0 rounded-full bg-ink-950 shadow-lift"
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                  />
+                )}
+                <span className="relative z-10">{l.label}</span>
+              </Link>
+            ))}
+
+            <span className="hidden shrink-0 items-center gap-1.5 rounded-full border border-paper-200/70 bg-paper-50/50 px-3 py-1.5 font-mono text-xs text-ink-600 sm:flex">
+              <span className="gradient-text font-bold">{done}</span>/{totalLessonCount} done
+            </span>
+          </div>
         </nav>
       </div>
       {aiOpen && <AiSettingsModal onClose={() => setAiOpen(false)} />}
     </motion.header>
+    <MobileTabBar />
+    </>
   );
 }

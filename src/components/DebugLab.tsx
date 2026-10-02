@@ -6,6 +6,7 @@ import {
   useReducedMotion,
 } from "framer-motion";
 import { runUserCode, evaluateCheck, type RunResult } from "../lib/runner";
+import { taxonomyEntry, type TaxonomyCode } from "../data/bug-taxonomy";
 import type { DebugChallenge } from "../data/types";
 import ErrorNote from "./ErrorNote";
 
@@ -20,9 +21,15 @@ type Props = {
   challenge: DebugChallenge;
   /** Fired the first time the repaired code passes. */
   onPass?: () => void;
+  /**
+   * Best score for this exercise, 0..1: 1.0 when the repair passes, 0.5 when
+   * the diagnosis is right but the repair isn't finished. Partial credit is
+   * recorded while the lesson stays incomplete until the fix passes.
+   */
+  onScore?: (score: number) => void;
 };
 
-export default function DebugLab({ challenge, onPass }: Props) {
+export default function DebugLab({ challenge, onPass, onScore }: Props) {
   const [code, setCode] = useState(challenge.broken);
   const [result, setResult] = useState<RunResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -30,6 +37,8 @@ export default function DebugLab({ challenge, onPass }: Props) {
   const [attempts, setAttempts] = useState(0);
   const [revealed, setRevealed] = useState(0);
   const [showSolution, setShowSolution] = useState(false);
+  const [diagPick, setDiagPick] = useState<TaxonomyCode | null>(null);
+  const [diagResult, setDiagResult] = useState<"none" | "right" | "wrong">("none");
 
   const shake = useAnimationControls();
   const pop = useAnimationControls();
@@ -45,6 +54,8 @@ export default function DebugLab({ challenge, onPass }: Props) {
     const ok = !r.error && evaluateCheck(challenge.fixCheck, r.logs.join("\n"));
     setPassed(ok);
     if (ok) {
+      // A working repair is full credit, whatever the diagnosis says.
+      onScore?.(1);
       if (!reduceMotion) {
         void pop.start({
           scale: [1, 1.015, 1],
@@ -61,6 +72,7 @@ export default function DebugLab({ challenge, onPass }: Props) {
         transition: { duration: 0.4 },
       });
     }
+    if (!ok && diagResult === "right") onScore?.(0.5);
     setRunning(false);
   };
 
@@ -71,6 +83,15 @@ export default function DebugLab({ challenge, onPass }: Props) {
     setAttempts(0);
     setRevealed(0);
     setShowSolution(false);
+    setDiagPick(null);
+    setDiagResult("none");
+  };
+
+  const checkDiagnosis = () => {
+    if (!challenge.diagnosis || !diagPick) return;
+    const right = diagPick === challenge.diagnosis.answer;
+    setDiagResult(right ? "right" : "wrong");
+    if (right && !passed) onScore?.(0.5);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -228,6 +249,60 @@ export default function DebugLab({ challenge, onPass }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Diagnosis — right answer earns 0.5 while the repair is unfinished */}
+      {challenge.diagnosis && !passed && (
+        <div className="mx-5 mt-4 rounded-2xl border border-paper-200 bg-paper-50/60 px-5 py-4">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-ink-500">
+            diagnosis — what kind of bug is it?
+          </p>
+          <p className="mt-1 text-sm text-ink-600">{challenge.diagnosis.prompt}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {challenge.diagnosis.codes.map((code) => {
+              const entry = taxonomyEntry(code);
+              const on = diagPick === code;
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={diagResult === "right"}
+                  onClick={() => setDiagPick(code)}
+                  className={
+                    "rounded-xl border px-3.5 py-2 text-left text-sm transition disabled:opacity-60 " +
+                    (on
+                      ? "border-gold-400 bg-gold-400/10"
+                      : "border-paper-200 hover:border-gold-400/60 hover:bg-paper-100")
+                  }
+                >
+                  <span className="font-mono text-xs font-bold text-gold-600">{code}</span>
+                  <span className="ml-2 text-ink-800">{entry.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={checkDiagnosis}
+              disabled={!diagPick || diagResult === "right"}
+              className="btn-ghost !px-4 !py-1.5 text-xs disabled:opacity-50"
+            >
+              {diagResult === "right" ? "diagnosed" : "Check diagnosis"}
+            </button>
+            {diagResult === "right" && (
+              <span className="font-mono text-xs text-gold-600">
+                ✓ right — 0.5 recorded. Now fix it for full credit.
+              </span>
+            )}
+            {diagResult === "wrong" && (
+              <span className="font-mono text-xs text-red-600">
+                ✗ not this one — reread the output before committing to a category.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Hint ladder */}
       <div className="space-y-2 px-5 pb-5 pt-4">

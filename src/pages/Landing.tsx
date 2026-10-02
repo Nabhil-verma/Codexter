@@ -413,7 +413,7 @@ export default function Landing() {
         />
 
         <motion.div
-          className="relative mx-auto max-w-6xl px-4 pb-24 pt-28 text-center sm:pt-36"
+          className="relative mx-auto max-w-6xl px-4 pb-20 pt-20 text-center sm:pb-24 sm:pt-36"
           style={reduceMotion ? undefined : { opacity: heroOpacity, y: heroY }}
         >
           {/* Floating code snippets — mouse parallax depths */}
