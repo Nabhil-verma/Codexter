@@ -5,7 +5,7 @@
 
 **Live:** [nnghedico.freebuff.app](https://nnghedico.freebuff.app)
 
-No paywalls, no "sign up to continue lesson 3", no code snippets you can only
+No paywalls, no waste of time , no code snippets you can only
 read. Every exercise runs *in your browser* and is graded by what your program
 actually does.
 
