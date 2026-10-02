@@ -11,11 +11,11 @@ import type { Check, PreviewSpec } from "../data/types";
 import { scoreFor, type Progress } from "./progress";
 
 /** The functional proof attached to a milestone, where one is possible. */
-export type MilestoneProof =
+type MilestoneProof =
   | { kind: "preview"; brief: string; spec: PreviewSpec }
   | { kind: "code"; brief: string; starter: string; check: Check };
 
-export type MilestoneBadge = {
+type MilestoneBadge = {
   id: string;
   icon: string;
   title: string;
@@ -443,7 +443,7 @@ export const PORTFOLIO_XP = MILESTONES.reduce((sum, m) => sum + m.xp, 0);
 
 /* --------------------------- Derivation --------------------------- */
 
-export type MilestoneStatus = {
+type MilestoneStatus = {
   milestone: Milestone;
   /** Every gating lesson is complete. */
   unlocked: boolean;

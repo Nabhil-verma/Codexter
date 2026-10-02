@@ -21,7 +21,7 @@ import {
   subscribeProgress,
   type Progress,
 } from "./lib/progress";
-import { clanRewardXp } from "./lib/clanRewards";
+import { clanRewardXp, resetClanRewards } from "./lib/clanRewards";
 import {
   applyCloudClaims,
   currentMilestoneXp,
@@ -30,6 +30,8 @@ import {
   subscribeClaims,
 } from "./lib/milestoneStore";
 import { mergeClaims, type Claims } from "./lib/milestones";
+import { toAbsoluteUrl } from "./lib/url";
+import { authMessage } from "./lib/friendlyError";
 import {
   ascensionFor,
   computeStreak,
@@ -43,10 +45,10 @@ import {
   xpInRange,
 } from "./lib/gamification";
 
-export type SyncState = "idle" | "syncing" | "synced" | "error";
+type SyncState = "idle" | "syncing" | "synced" | "error";
 
 /** Minimal user shape the UI needs — no vendor types leak into components. */
-export type AccountUser = { displayName: string; email: string };
+type AccountUser = { displayName: string; email: string };
 
 type AccountCtx = {
   user: AccountUser | null;
@@ -61,20 +63,6 @@ type AccountCtx = {
 };
 
 const Ctx = createContext<AccountCtx | null>(null);
-
-function friendlyError(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err ?? "");
-  if (/invalid/i.test(msg) && /credential|password|email/i.test(msg))
-    return "Wrong email or password.";
-  if (/already exists|already registered/i.test(msg))
-    return "That email already has an account — sign in instead.";
-  if (/weak/i.test(msg)) return "Password too weak — use at least 8 characters.";
-  if (/rate limit|too many/i.test(msg))
-    return "Too many attempts — wait a minute and retry.";
-  if (/fetch|network|Failed to fetch|WebSocket/i.test(msg))
-    return "Can't reach the sync server right now — try again shortly.";
-  return msg || "Something went wrong — try again.";
-}
 
 /* ------------------------------------------------------------------ */
 /* Cloud account store (Convex Auth)                                   */
@@ -241,7 +229,7 @@ function ConvexAccount({ children }: { children: ReactNode }) {
         await act.signIn("password", { email, password, flow: "signIn" });
         await waitForUser(waiters);
       } catch (err) {
-        throw new Error(friendlyError(err));
+        throw new Error(authMessage(err));
       }
     },
     [act]
@@ -253,7 +241,7 @@ function ConvexAccount({ children }: { children: ReactNode }) {
         await act.signIn("password", { name, email, password, flow: "signUp" });
         await waitForUser(waiters);
       } catch (err) {
-        throw new Error(friendlyError(err));
+        throw new Error(authMessage(err));
       }
     },
     [act]
@@ -261,7 +249,13 @@ function ConvexAccount({ children }: { children: ReactNode }) {
 
   const signOutUser = useCallback(async () => {
     await act.signOut();
+    // Signing out wipes everything that belonged to the account on this device:
+    // lesson scores, milestone claims and banked guild rewards. Leaving any of
+    // the three behind would show rewards the next (signed-out) learner never
+    // earned — and the profile push would keep publishing them.
     resetLocalProgress();
+    resetClaims();
+    resetClanRewards();
     lastPulled.current = "";
     lastPushed.current = "";
     lastPulledClaims.current = "";
@@ -271,9 +265,11 @@ function ConvexAccount({ children }: { children: ReactNode }) {
 
   const resetEverything = useCallback(async () => {
     resetLocalProgress();
-    // Claims are progress too — leaving them local would let a reset device
-    // push the wiped milestones straight back to the account.
+    // Claims and banked guild rewards are progress too — leaving them local
+    // would let a reset device push the wiped milestones and rewards straight
+    // back into the account's XP.
     resetClaims();
+    resetClanRewards();
     lastPushed.current = "";
     lastPushedClaims.current = "";
     if (signedIn) {
@@ -330,11 +326,18 @@ function waitForUser(waiters: { current: (() => void)[] }): Promise<void> {
 /* ------------------------------------------------------------------ */
 
 const CONVEX_DEPLOYMENT = "accomplished-hyena-726";
-const CONVEX_URL = `https://${CONVEX_DEPLOYMENT}.convex.cloud`;
+/** Last known-good cloud address — used if the constant above ever breaks. */
+const DEFAULT_CONVEX_URL = "https://accomplished-hyena-726.convex.cloud";
+/**
+ * Always the production Convex cloud URL (the env var from `convex dev` points
+ * at localhost and must never leak into a production build, so it is not read
+ * here). The address is validated anyway: `new ConvexReactClient()` throws
+ * "Provided address was not an absolute URL" for anything without a scheme, and
+ * that throw happens inside a constructor, so it takes the whole app with it.
+ */
+const CONVEX_URL = toAbsoluteUrl(`https://${CONVEX_DEPLOYMENT}.convex.cloud`, DEFAULT_CONVEX_URL);
 
 export function AccountProvider({ children }: { children: ReactNode }) {
-  // Always use the production Convex cloud URL.  The env var from `convex dev`
-  // points at localhost and must never leak into a production build.
   const client = useMemo(() => new ConvexReactClient(CONVEX_URL), []);
 
   return (

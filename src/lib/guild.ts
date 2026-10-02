@@ -4,7 +4,7 @@
    from exactly one ladder.
    ═══════════════════════════════════════════════════════════════ */
 
-export type GuildTier = {
+type GuildTier = {
   id: string;
   name: string;
   /** pooled all-time XP needed for the tier */

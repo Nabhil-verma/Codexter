@@ -6,6 +6,16 @@ import { v } from "convex/values";
 type Claim = { at: string; deliverables: number[] };
 type Claims = Record<string, Claim>;
 
+/*
+ * A signed-in client is still a trust boundary: `data` and `claims` arrive as
+ * `v.any()`, so both maps are capped before they can be stored. Real maps are
+ * ~86 lesson keys and 6 milestones, so these ceilings are only ever hit by a
+ * bug or a hostile client — and they stop one row from growing unbounded.
+ */
+const MAX_PROGRESS_ENTRIES = 2_000;
+const MAX_CLAIMS = 64;
+const MAX_KEY_LENGTH = 120;
+
 /**
  * Claims, validated the way `sanitize` validates scores: a malformed client
  * must not be able to store junk that breaks every later merge. The date is
@@ -15,6 +25,8 @@ function sanitizeClaims(raw: unknown): Claims {
   const out: Claims = {};
   if (!raw || typeof raw !== "object") return out;
   for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (Object.keys(out).length >= MAX_CLAIMS) break;
+    if (id.length > MAX_KEY_LENGTH) continue;
     if (!value || typeof value !== "object") continue;
     const { at, deliverables } = value as {
       at?: unknown;
@@ -67,6 +79,8 @@ function sanitize(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   if (!raw || typeof raw !== "object") return out;
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (Object.keys(out).length >= MAX_PROGRESS_ENTRIES) break;
+    if (key.length > MAX_KEY_LENGTH) continue;
     const n = typeof value === "number" ? value : Number(value);
     if (Number.isFinite(n)) out[key] = Math.min(1, Math.max(0, n));
   }

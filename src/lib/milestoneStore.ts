@@ -1,6 +1,5 @@
 /* ------------------------------------------------------------------ */
-/* Milestone claims — localStorage + a tiny pub/sub, mirroring the     */
-/* progress store so views re-render the same way.                     */
+/* Milestone claims — a localStorage claim log (see localStore.ts).    */
 /*                                                                     */
 /* Kept deliberately separate from `progress`: the progress map is a   */
 /* numeric score map, while a project claim is a dated attestation     */
@@ -9,7 +8,7 @@
 /* Local storage stays the source of truth while signed out.          */
 /* ------------------------------------------------------------------ */
 
-import { useEffect, useState } from "react";
+import { createLocalStore, readRecord, useLocalStore } from "./localStore";
 import {
   mergeClaims,
   milestoneXpTotal,
@@ -19,38 +18,44 @@ import {
 
 const KEY = "clr-milestones-v1";
 
-type Listener = () => void;
-const listeners = new Set<Listener>();
-
-export function subscribeClaims(fn: Listener): () => void {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
+/**
+ * Only a dated tick list is a claim; anything else is dropped. The same rule
+ * the backend enforces, applied on the way in, so a hand-edited entry can't
+ * reach the "shipped" tiles and break their rendering.
+ */
+function sanitizeClaims(raw: unknown): Claims {
+  const out: Claims = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!value || typeof value !== "object") continue;
+    const { at, deliverables } = value as { at?: unknown; deliverables?: unknown };
+    if (typeof at !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(at)) continue;
+    if (!Array.isArray(deliverables)) continue;
+    const ticks = [
+      ...new Set(
+        deliverables
+          .map((n) => (typeof n === "number" ? n : Number(n)))
+          .filter((n) => Number.isInteger(n) && n >= 0)
+      ),
+    ].sort((a, b) => a - b);
+    if (ticks.length === 0) continue;
+    out[id] = { at, deliverables: ticks };
+  }
+  return out;
 }
 
-function emit() {
-  for (const fn of listeners) fn();
+const store = createLocalStore<Claims>(KEY, (raw) => sanitizeClaims(readRecord(raw)));
+
+export function subscribeClaims(fn: () => void): () => void {
+  return store.subscribe(fn);
 }
 
 export function loadClaims(): Claims {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Claims;
-      if (parsed && typeof parsed === "object") return parsed;
-    }
-  } catch {
-    // corrupted or unavailable storage — fall through to no claims
-  }
-  return {};
+  return store.get();
 }
 
 export function saveClaims(claims: Claims) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(claims));
-  } catch {
-    // private mode — claims simply don't persist locally
-  }
-  emit();
+  store.set(claims);
 }
 
 /**
@@ -87,25 +92,13 @@ export function claimMilestone(
 }
 
 export function resetClaims() {
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    // ignore
-  }
-  emit();
+  store.reset();
 }
 
 /* --------------------------- React bindings --------------------------- */
 
 export function useClaims(): Claims {
-  const [claims, setClaims] = useState<Claims>(loadClaims);
-  useEffect(() => subscribeClaims(() => setClaims(loadClaims())), []);
-  return claims;
-}
-
-/** XP earned from shipped milestones — its own stat, next to lesson XP. */
-export function useMilestoneXp(): number {
-  return milestoneXpTotal(useClaims());
+  return useLocalStore(store);
 }
 
 /**

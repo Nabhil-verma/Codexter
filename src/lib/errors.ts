@@ -3,7 +3,7 @@
  * sandbox into a beginner-friendly one-liner plus an actionable fix.
  */
 
-export type TranslatedError = {
+type TranslatedError = {
   /** Short title of the matched pattern, e.g. "You're using an undefined variable" */
   title: string;
   /** Beginner-friendly explanation of what actually happened */

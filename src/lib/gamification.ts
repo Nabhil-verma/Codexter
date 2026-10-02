@@ -9,13 +9,13 @@ import { lessonIdOf, scoreFor, type Progress } from "./progress";
 /* ---------------------------- XP ---------------------------- */
 
 /** XP for one lesson: base 50, +25 for a flawless (100%) quiz. */
-export function lessonXp(score: number): number {
+function lessonXp(score: number): number {
   return 50 + (score >= 1 ? 25 : 0);
 }
 
 /* ---------------- Day buckets: XP grouped by calendar day ---------------- */
 
-export type DayBucket = {
+type DayBucket = {
   /** `YYYY-MM-DD`, or "" for legacy keys with no date stamp */
   day: string;
   /** lessons whose best score landed on this day */
@@ -58,7 +58,7 @@ export function lessonXpTotal(progress: Progress): number {
  * the progress map, so bonus XP is deterministic across devices and never
  * awarded twice. `bonus` is the real XP paid for finishing the quest.
  */
-export type QuestDef = {
+type QuestDef = {
   id: string;
   icon: string;
   title: string;
@@ -128,7 +128,7 @@ export function dayQuestBonus(bucket: DayBucket | undefined): number {
 }
 
 /** `YYYY-MM-DD` for the previous calendar day. */
-export function prevDayKey(day: string): string {
+function prevDayKey(day: string): string {
   const d = new Date(day + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().slice(0, 10);
@@ -144,7 +144,7 @@ function activeSet(buckets: Map<string, DayBucket>): Set<string> {
 }
 
 /** Every XP source on a single day: lessons + quests + consistency. */
-export function dayXp(buckets: Map<string, DayBucket>, days: Set<string>, day: string): number {
+function dayXp(buckets: Map<string, DayBucket>, days: Set<string>, day: string): number {
   const b = buckets.get(day);
   if (!b) return 0;
   return b.xp + dayQuestBonus(b) + consistencyBonus(days, day);
@@ -194,7 +194,7 @@ export function playerXp(progress: Progress, bonusXp = 0): number {
 
 /* ------------------ Daily quest board (today's view) ------------------ */
 
-export type QuestView = {
+type QuestView = {
   id: string;
   icon: string;
   title: string;
@@ -440,11 +440,6 @@ export function resolveAscension(
   return ASCENSIONS.find((a) => a.id === id) ?? ascensionFor(level).current;
 }
 
-/** Ascension tiers unlocked at a given level (newest first). */
-export function unlockedAscensions(level: number): Ascension[] {
-  return ASCENSIONS.filter((a) => a.minLevel <= level).reverse();
-}
-
 /* --------------------------- Titles --------------------------- */
 
 export type Title = { id: string; label: string; minLevel: number };
@@ -485,7 +480,7 @@ export type Badge = {
   description: string;
 };
 
-export type EarnedBadge = Badge & { earned: boolean };
+type EarnedBadge = Badge & { earned: boolean };
 
 const ALL_BADGES: Badge[] = [
   { id: "first-steps", icon: "①", title: "First Steps", description: "Complete your first lesson." },
@@ -504,14 +499,10 @@ const ALL_BADGES: Badge[] = [
 ];
 
 /** Context the progress map can't express on its own. */
-export type BadgeContext = {
+type BadgeContext = {
   level?: number;
   clanRole?: "none" | "member" | "officer" | "owner";
 };
-
-export function allBadges(): Badge[] {
-  return ALL_BADGES;
-}
 
 export function computeBadges(
   progress: Progress,

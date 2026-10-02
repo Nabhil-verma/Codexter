@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createLocalStore, readRecord, useLocalStore } from "./localStore";
 
 const KEY = "clr-progress-v2";
 /** Pre-v2 keys had no date suffix — migrated once on load. */
@@ -11,39 +11,84 @@ export type Progress = {
 
 export const EMPTY_PROGRESS: Progress = { completed: {} };
 
+
 /** Stable part of a stored key: `web/html!2026-09-01` → `web/html`. */
 export function lessonIdOf(key: string): string {
   return key.split("!")[0];
 }
 
 /* ------------------------------------------------------------------ */
-/* Migration: v1 keys (`track/lesson`) → v2 (`track/lesson!date`).     */
-/* Old scores keep their value; the completion day is unknowable, so   */
-/* they count as completed but don't fabricate streak days.            */
+/* Validation: the stored map is the one input to every XP number, so   */
+/* a hand-edited or half-written entry must not be able to poison it.  */
+/* Values are coerced to a finite 0..1 score (the same rule the Convex  */
+/* layer applies before a map touches the database); keys are kept as   */
+/* written, because pre-v2 keys legitimately have no date suffix.       */
 /* ------------------------------------------------------------------ */
 
-function migrateV1(raw: Record<string, number>): Record<string, number> {
+function sanitizeScores(raw: unknown): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(raw)) {
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    const n = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(n)) out[key] = Math.min(1, Math.max(0, n));
+  }
+  return out;
+}
+
+/** Migration: v1 keys (`track/lesson`) → v2 (`track/lesson!date`). */
+function migrateV1(completed: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(completed)) {
     out[k.includes("!") ? k : k + "!"] = v;
   }
   return out;
 }
 
-/* ------------------------------------------------------------------ */
-/* Tiny pub/sub so every view re-renders when progress changes        */
-/* ------------------------------------------------------------------ */
-
-type Listener = () => void;
-const listeners = new Set<Listener>();
-
-export function subscribeProgress(fn: Listener): () => void {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
+/** One raw value, or `null` when there is no storage to read from. */
+function readRaw(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
 }
 
-function emit() {
-  for (const fn of listeners) fn();
+/**
+ * Read the stored progress, migrating a pre-v2 key the first time it's seen.
+ * An old score keeps its value; the completion day is unknowable, so migrated
+ * keys count as completed without fabricating streak days.
+ *
+ * Never throws: a half-written entry in any of the three keys is a corrupt
+ * cache, not a reason to lose the page.
+ */
+function parseProgress(raw: string | null): Progress {
+  try {
+    if (raw !== null) {
+      const stored = readRecord(raw);
+      if (stored.completed !== undefined) return { completed: sanitizeScores(stored.completed) };
+    }
+    for (const legacy of LEGACY_KEYS) {
+      const old = readRaw(legacy);
+      if (old === null) continue;
+      const stored = readRecord(old);
+      if (stored.completed !== undefined) {
+        return { completed: migrateV1(sanitizeScores(stored.completed)) };
+      }
+    }
+  } catch {
+    // Unparseable JSON — fall through to fresh state.
+  }
+  return { completed: {} };
+}
+
+const store = createLocalStore<Progress>(KEY, parseProgress);
+
+/* ------------------------------------------------------------------ */
+/* Pub/sub — every view re-renders when progress changes.              */
+/* ------------------------------------------------------------------ */
+
+export function subscribeProgress(fn: () => void): () => void {
+  return store.subscribe(fn);
 }
 
 /* ------------------------------------------------------------------ */
@@ -51,37 +96,11 @@ function emit() {
 /* ------------------------------------------------------------------ */
 
 export function loadProgress(): Progress {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Progress;
-      if (parsed && typeof parsed.completed === "object" && parsed.completed) {
-        return { completed: parsed.completed };
-      }
-    }
-    // Attempt a one-time migration from any older format.
-    for (const legacy of LEGACY_KEYS) {
-      const old = localStorage.getItem(legacy);
-      if (old) {
-        const parsed = JSON.parse(old) as Progress;
-        if (parsed && typeof parsed.completed === "object" && parsed.completed) {
-          return { completed: migrateV1(parsed.completed) };
-        }
-      }
-    }
-  } catch {
-    // corrupted storage — fall through to fresh state
-  }
-  return { completed: {} };
+  return store.get();
 }
 
 export function saveProgress(p: Progress) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(p));
-  } catch {
-    // storage unavailable (private mode) — progress just won't persist locally
-  }
-  emit();
+  store.set(p);
 }
 
 /**
@@ -90,10 +109,9 @@ export function saveProgress(p: Progress) {
  */
 export function recordLesson(key: string, score: number, dateKey: string): Progress {
   const p = loadProgress();
-  const storedKey = key + "!" + dateKey;
-  const best = Math.max(scoreFor(p, key), score);
-  if (best === scoreFor(p, key)) return p;
-  p.completed[storedKey] = best;
+  const best = scoreFor(p, key);
+  if (score <= best) return p;
+  p.completed[key + "!" + dateKey] = score;
   saveProgress(p);
   return p;
 }
@@ -121,11 +139,7 @@ function todayKey(d: Date = new Date()): string {
 }
 
 export function resetLocalProgress() {
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    // ignore
-  }
+  store.reset();
   for (const legacy of LEGACY_KEYS) {
     try {
       localStorage.removeItem(legacy);
@@ -133,7 +147,6 @@ export function resetLocalProgress() {
       // ignore
     }
   }
-  emit();
 }
 
 /** Union of two progress objects, keeping the best score per (lesson, day). */
@@ -150,9 +163,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
 /* ------------------------------------------------------------------ */
 
 export function useProgressState(): Progress {
-  const [progress, setProgress] = useState<Progress>(loadProgress);
-  useEffect(() => subscribeProgress(() => setProgress(loadProgress())), []);
-  return progress;
+  return useLocalStore(store);
 }
 
 export function useProgress() {

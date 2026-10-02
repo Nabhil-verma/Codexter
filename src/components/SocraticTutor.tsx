@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { callAi, loadAiSettings, subscribeAiSettings, type TutorMessage } from "../lib/ai";
+import { useCallback, useRef, useState } from "react";
+import { callAi, loadAiSettings, useAiSettings, type TutorMessage } from "../lib/ai";
 
 type Props = {
   /** The student's current code in the editor. */
@@ -48,18 +48,12 @@ export default function SocraticTutor({
   const [messages, setMessages] = useState<TutorMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [settingsReady, setSettingsReady] = useState(!!loadAiSettings().provider);
+  // Subscribed through the store hook, so adding or removing a provider in
+  // Settings re-renders this panel — the subscription is owned by exactly one
+  // effect inside `useLocalStore`, never re-created per render.
+  const settingsReady = !!useAiSettings().provider;
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // Re-render when a provider is added or removed in Settings. This has to run
-  // in an effect: invoking the hook's return value inline ran on EVERY render
-  // and leaked a subscription each time.
-  useEffect(() => {
-    return subscribeAiSettings(() => {
-      setSettingsReady(!!loadAiSettings().provider);
-    });
-  }, []);
 
   const askTutor = useCallback(
     async (studentMessage: string) => {

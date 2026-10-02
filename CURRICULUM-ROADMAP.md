@@ -407,7 +407,8 @@ metrics. In priority order:
 
 ## 8. Open items
 
-All four items from the last pass are closed.
+All four items from the last pass are closed, and the first cohort's bug report
+(§8.1) is closed with them.
 
 | Item | Status |
 | --- | --- |
@@ -415,10 +416,15 @@ All four items from the last pass are closed.
 | TypeScript track | **Shipped** — 6 lessons, 5 runnable against the real compiler in the browser (§3.2) |
 | Performance & Accessibility track | **Shipped** — 6 lessons, 4 of them live previews (§3.2) |
 | CI workflow | **Shipped** — `.github/workflows/ci.yml` runs `bun run typecheck` and `bun run test` on every push to `main` and every PR |
-| Production Convex deploy | **Deployed** — schema and functions are live on `https://accomplished-hyena-726.convex.cloud`, the cloud deployment the client targets (`CONVEX_DEPLOYMENT` in `src/AccountProvider.tsx`). Verified with `bunx convex function-spec` (`progress.getClaims`/`saveClaims`, `clans.*`, `leaderboard.*`, `profiles.*`, `users.*`) and `bunx convex data` (all tables present). A `deploy-backend` job keeps it in step via `bunx convex deploy` on pushes to `main` |
+| Production Convex deploy | **Blocked on a key, not on code** — the `CONVEX_DEPLOY_KEY` in the workspace environment is rejected by `api.convex.dev` (`401 AuthenticationFailed: Invalid Convex deploy key`) for both `bunx convex deploy` and `bun convex dev --once` (Sep 25, 2026). The guild hall's first cohort reported `Could not find public function for 'clans:mine'` from the deployed site, which is this same gap seen from the other end: the app ships but its functions didn't. A fresh deploy key for `accomplished-hayena-726` unblocks it in one command |
+| Resilient panels | **Shipped** — a failed query is now scoped to its own panel (and a failed page to its own route), with plain-English copy from `panelMessage()` and a Try-again button. `tests/resilience-ux.test.tsx` renders the real Convex missing-function error through a boundary and asserts the app keeps rendering and the raw `CONVEX`/request-id string is never shown |
+| Night mode | **Shipped** — the whole palette moved to CSS variables, so `.dark` on `<html>` rethemes every page; toggle in the nav, choice persisted, applied before first paint |
+| Quick-practice fixes | **Shipped** — the assembly answers were listed with the closing brace before the loop body, so they were unsolvable (the first cohort called the feedback "weird"); fixed, plus a Previous button, a Hint button, per-line feedback and a completion screen |
 
-The deploy itself is done, so nothing here blocks the app. Two properties of the
-setup are worth stating plainly, because neither is a loose end:
+The only thing open in this section is a credential: with a valid deploy key the
+run is `bunx convex deploy`, and nothing else in the app needs to change. Two
+properties of the setup are worth stating plainly, because neither is a loose
+end:
 
 - **This app has one cloud deployment, not a dev/prod pair.** The client builds
   its URL from the hard-coded `CONVEX_DEPLOYMENT` constant and deliberately does
@@ -434,20 +440,34 @@ setup are worth stating plainly, because neither is a loose end:
   why and exits clean rather than failing a fork.
 
 Everything else about this pillar is verified by the suite — functions bundle and
-codegen is in sync (`convex dev --once`), the bindings are committed so CI
-typechecks without a backend, and every function is exercised in-process by the
-convex-test suites.
+codegen is in sync (the local deployment rebuilds every function), the bindings
+are committed so CI typechecks without a backend, and every function is
+exercised in-process by the convex-test suites.
+
+### 8.1 The first cohort's bug report
+
+Six real learners' reports, each one a specific defect rather than a preference:
+
+| Report | Cause | Fix |
+| --- | --- | --- |
+| "Tried to click on guilds and got" `Could not find public function for 'clans:mine'` — as a full-app crash card | The rewards ladder on `/clans` queried `clans.mine` *outside* the panel boundary, so one failed query replaced the whole app | Every guild panel (and every route) now renders inside a boundary; the copy explains the stale-backend cause and offers Try-again (`panelMessage()`) |
+| "'start a quest' in the quest section doesn't lead to anything" | The button linked to `/learn`, the page the board is already on, so the click was a no-op | It links to the first unfinished lesson, or to the curriculum when everything is done |
+| "The feedback on this is really weird" — code assembly said *not quite* for the correct order | The question data listed the answer with the closing brace **before** the loop body, so no arrangement could pass; the explanation then read like a subtitle because it was the only thing the learner ever saw | Answers corrected to runnable order, feedback now names the first line that's out of place, a Hint button offers the reasoning *before* the guess, and every wrong answer carries the mechanic it exposes — pinned by a test that arranges the lines through the real buttons |
+| "Adding a previous button would be cool" | Practice was forward-only (`next` only) | Previous / Next plus clickable progress dots |
+| "nice feedback when you complete all 6 of them" | Nothing marked a question solved and there was no end state | Solved questions tick in the header and the dots; clearing all six shows a completion card with what was actually learned |
+| "I would add a dark mode" | The palette was hard-coded per color, so a theme meant touching every component | Palette moved to CSS variables + a `.dark` class, a nav toggle, persisted choice, no flash on load |
+| "smoothing out the fade out scroll away on the landing page hero, it feels laggy while it isn't" | The hero exit animated `opacity`, `translateY` **and** `scale` straight off the raw scroll position, so every scroll tick repainted a text-heavy layer | Spring-smoothed scroll, transform/opacity only (no scale), pointer parallax scoped to the hero, and the whole effect skipped under `prefers-reduced-motion` |
 
 ---
 
 ## 9. Verification
 
-Everything in this document is enforced by the suite — **155 tests across 15
+Everything in this document is enforced by the suite — **171 tests across 17
 files**, up from 79:
 
 ```
 bun tsc -b --noEmit     # clean
-bun x vitest run        # 155 passing
+bun x vitest run        # 171 passing
 ```
 
 And the same two commands now run on every push and pull request, so this
@@ -482,3 +502,16 @@ hide:
 - `tests/new-exercises.test.ts` — extended to all five recently added tracks,
   with the TypeScript reference solutions graded through the compiler: each one
   must type-check clean *and* satisfy its output check
+- `tests/resilience-ux.test.tsx` — the first cohort's bug list, pinned: the real
+  `Could not find public function for 'clans:mine'` error renders as an
+  explanation while the rest of the page keeps working, quick practice has a
+  Previous button and a Hint, an assembly answer only verifies in *runnable*
+  order (the bug that made it unsolvable), spot-the-bug grades the clicked line,
+  the quest board links at the next unfinished lesson, and the theme toggle
+  flips `.dark` and remembers it
+- `tests/url.test.ts` — the reported production crash ("Provided address was not
+  an absolute URL"), pinned at both ends: the guard rejects `undefined`, `""`,
+  `/api` and a scheme-less host, never throws, and always hands back a string;
+  and the client's cloud address is read back off disk to prove it names the
+  same deployment as the auth provider — a typo'd twin there is exactly how
+  sign-in pointed at a deployment that does not exist

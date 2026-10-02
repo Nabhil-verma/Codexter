@@ -360,6 +360,9 @@ export async function traceCode(code: string, timeoutMs = 5000): Promise<TraceRe
   };
 
   try {
+    // Learner code, executed in the page's realm on purpose: the visualizer
+    // needs a synchronous hook per line, which an out-of-process sandbox
+    // cannot provide. See the trust-boundary note on runUserCode.
     const src = addTickGuards(instrument(code));
     const fn = new Function(
       "__step__",

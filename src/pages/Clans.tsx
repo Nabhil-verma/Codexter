@@ -5,11 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import Nav from "../components/Nav";
 import { Orb, Reveal, Tilt } from "../components/motion";
-import {
-  PanelBoundary,
-  PanelFallback,
-  RankFrame,
-} from "../components/gamification/Pieces";
+import { PanelBoundary, RankFrame } from "../components/gamification/Pieces";
 import { Crown, ShieldHalf, UserCog } from "lucide-react";
 import { GUILD_TIERS, guildTierFor } from "../lib/guild";
 import { friendly } from "../lib/friendlyError";
@@ -50,18 +46,16 @@ export default function Clans() {
       </section>
 
       <main className="mx-auto max-w-4xl px-4 pb-24">
-        <PanelBoundary
-          fallback={
-            <div className="mt-6">
-              <PanelFallback message="Guilds need the leaderboard server to be reachable. You can still earn XP and titles in the meantime." />
-            </div>
-          }
-        >
+        {/*
+          * One boundary around every live guild panel — including the rewards
+          * ladder, which used to sit outside it and took the whole app down
+          * when the backend had no `clans:*` functions deployed yet.
+          */}
+        <PanelBoundary message="Guilds need the guild server to be reachable. You can still earn XP, lessons and titles in the meantime.">
           <GuildSection />
           <GuildBoard />
+          <RewardsLadder />
         </PanelBoundary>
-
-        <RewardsLadder />
       </main>
     </div>
   );

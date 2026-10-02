@@ -6,21 +6,13 @@ import {
   useAnimationControls,
   useReducedMotion,
 } from "framer-motion";
+import { shuffled } from "../../lib/shuffle";
 
 /* ═══════════════════════════════════════════════════════════════
    Drag-to-sequence challenges. Reading a correct answer teaches
    far less than reconstructing it, and dragging a line into place
    gives the lesson a tactile, physical feel.
    ═══════════════════════════════════════════════════════════════ */
-
-function shuffled<T>(input: T[]): T[] {
-  const out = [...input];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
 
 /** Identity for a reorderable row — index-based so duplicates stay stable. */
 type Row = { id: number; text: string };
@@ -37,16 +29,11 @@ export default function DragSort({
   explanation?: string;
   onSolved?: () => void;
 }) {
-  const [order, setOrder] = useState<Row[]>(() => {
-    const base = items.map((text, id) => ({ id, text }));
-    // Never hand the learner a pre-solved puzzle — re-roll once if the
-    // shuffle happens to land on the correct order.
-    let next = shuffled(base);
-    if (items.length > 1 && next.every((r, i) => r.text === items[i])) {
-      next = shuffled(base);
-    }
-    return next;
-  });
+  // Never hand the learner a pre-solved puzzle: `shuffled` guarantees the
+  // arrangement differs from `items`, which is the solved order.
+  const [order, setOrder] = useState<Row[]>(() =>
+    shuffled(items.map((text, id) => ({ id, text })))
+  );
   const [checked, setChecked] = useState(false);
   const [solved, setSolved] = useState(false);
   const shake = useAnimationControls();
@@ -124,7 +111,7 @@ export default function DragSort({
                 className={
                   "flex items-center gap-3 rounded-xl border px-3.5 py-3 font-mono text-[13px] leading-snug transition-colors " +
                   (correctHere
-                    ? "border-gold-400 bg-gold-400/12 text-ink-950"
+                    ? "border-gold-400 bg-gold-400/15 text-ink-950"
                     : wrongHere
                       ? "border-red-300 bg-red-50/70 text-red-700"
                       : "border-ink-200 bg-paper-50 text-ink-800")

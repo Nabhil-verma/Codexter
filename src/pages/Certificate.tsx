@@ -71,7 +71,7 @@ export default function Certificate() {
       <Nav />
       <main className="relative mx-auto max-w-3xl px-4 py-12">
         <div className="pointer-events-none absolute inset-0" aria-hidden>
-          <Orb className="left-[10%] top-[5%] bg-gold-400/8" size={200} duration={13} />
+          <Orb className="left-[10%] top-[5%] bg-gold-400/10" size={200} duration={13} />
         </div>
         <div className="relative z-10">
         {!complete ? (

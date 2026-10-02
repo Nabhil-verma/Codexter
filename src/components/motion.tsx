@@ -2,11 +2,8 @@ import {
   motion,
   useAnimationFrame,
   useMotionValue,
-  useScroll,
   useSpring,
-  useTransform,
   type MotionValue,
-  type Variants,
 } from "framer-motion";
 import {
   useEffect,
@@ -19,23 +16,8 @@ import {
 
 /* ═══════════════════════════════════════════════════════════════
    Shared Framer-Motion primitives — the visual DNA of the site.
-   Reveal · Tilt · Marquee · Orb · Parallax · Magnetic · Float
+   Reveal · PageFade · Tilt · Marquee · Orb · Magnetic
    ═══════════════════════════════════════════════════════════════ */
-
-/** Stagger container — pair with <motion.* variants={riseItem}> children. */
-export const stagger: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.08 } },
-};
-
-export const riseItem: Variants = {
-  hidden: { opacity: 0, y: 26 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
-  },
-};
 
 /* ─────────────────────────────── Fade-up when scrolled into view */
 
@@ -265,31 +247,6 @@ export function Orb({
   );
 }
 
-/* ─────────────────────────────── Scroll parallax wrapper */
-
-export function Parallax({
-  children,
-  speed = 40,
-  className,
-}: {
-  children: ReactNode;
-  /** px drift across the element's journey through the viewport */
-  speed?: number;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-  const y = useTransform(scrollYProgress, [0, 1], [speed, -speed]);
-  return (
-    <div ref={ref} className={className}>
-      <motion.div style={{ y }}>{children}</motion.div>
-    </div>
-  );
-}
-
 /* ─────────────────────────────── Magnetic hover (buttons) */
 
 export function Magnetic({
@@ -325,32 +282,6 @@ export function Magnetic({
         x.set(0);
         y.set(0);
       }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-/* ─────────────────────────────── Gentle idle float for any content */
-
-export function Float({
-  children,
-  className,
-  duration = 6,
-  delay = 0,
-  distance = 14,
-}: {
-  children: ReactNode;
-  className?: string;
-  duration?: number;
-  delay?: number;
-  distance?: number;
-}) {
-  return (
-    <motion.div
-      className={className}
-      animate={{ y: [0, -distance, 0] }}
-      transition={{ duration, delay, repeat: Infinity, ease: "easeInOut" }}
     >
       {children}
     </motion.div>

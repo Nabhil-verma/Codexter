@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useProgressState } from "../../lib/progress";
+import { scoreFor, useProgressState } from "../../lib/progress";
+import { tracks } from "../../data";
 import {
   bonusXpTotal,
   dailyQuests,
@@ -25,6 +27,22 @@ export default function QuestBoard() {
   const bonusXp = bonusXpTotal(progress);
   const earnedToday = dayBuckets(progress).get(today);
   const next = quests.find((q) => !q.done);
+
+  /*
+   * "Start a quest" used to link at /learn — the page this board already sits
+   * on, so the button did nothing for a learner standing right there. Point it
+   * at the first unfinished lesson instead, which is what the quest means.
+   */
+  const nextLesson = useMemo(() => {
+    for (const track of tracks) {
+      for (const lesson of track.lessons) {
+        if (scoreFor(progress, track.id + "/" + lesson.id) < 1) {
+          return { trackId: track.id, id: lesson.id, title: lesson.title, track: track.title };
+        }
+      }
+    }
+    return null;
+  }, [progress]);
 
   return (
     <div className="glass glass-edge relative overflow-hidden rounded-2xl border border-paper-200/60">
@@ -130,10 +148,20 @@ export default function QuestBoard() {
           {next
             ? "next up: " + next.title + " — " + next.detail
             : "everything done — the board is watching 👀"}
+          {nextLesson
+            ? " · continue: " + nextLesson.title + " (" + nextLesson.track + ")"
+            : " · every lesson is finished"}
           {earnedToday ? " · " + earnedToday.xp + " lesson XP today" : ""}
         </p>
-        <Link to="/learn" className="btn-gold !px-5 !py-2 text-sm">
-          Start a quest →
+        <Link
+          to={
+            nextLesson
+              ? "/learn/" + nextLesson.trackId + "/" + nextLesson.id
+              : "/learn"
+          }
+          className="btn-gold !px-5 !py-2 text-sm"
+        >
+          {nextLesson ? "Start a quest →" : "Review the lessons →"}
         </Link>
       </div>
     </div>
