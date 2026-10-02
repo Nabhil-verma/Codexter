@@ -558,6 +558,6 @@ unanswerable exercises, unsolvable quizzes, and no-op buttons that shipped
 before anyone said so — all of them fixed, and several pinned by a test so they
 can't come back.
 
-DM me on Discord — username **`ado_zaryan`**, display name **`XARYAN`**.
+DM me on Discord — username **`xar.z_dom`**, display name **`XAR-𝒳𝒶𝓇𝓎𝒶𝓃`**.
 
 Thank you, and please try your best! :)
