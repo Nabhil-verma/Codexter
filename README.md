@@ -542,9 +542,10 @@ unaffected.
   open-items table, and the first real cohort's bug report with cause and fix for
   each entry
 - **[CURRICULUM-V2.md](./CURRICULUM-V2.md)** — the next-curriculum design:
-  the judgment-over-authorship exercise format, the shared AI-bug taxonomy, four
-  new tracks (coding agents, building with LLMs, SQL, professional workflow),
-  the grader verification, and the auditable diff against today's 15 tracks
+  the judgment-over-authorship exercise format, the shared AI-bug taxonomy,
+  five new tracks (coding agents, building with LLMs, SQL, professional
+  workflow, and an interview-prep capstone), the grader verification, and the
+  auditable diff against today's 15 tracks
 
 ## License
 
