@@ -541,6 +541,10 @@ unaffected.
   interactive engine, the courses it unlocks, the project milestone layer, the
   open-items table, and the first real cohort's bug report with cause and fix for
   each entry
+- **[CURRICULUM-V2.md](./CURRICULUM-V2.md)** — the next-curriculum design:
+  the judgment-over-authorship exercise format, the shared AI-bug taxonomy, four
+  new tracks (coding agents, building with LLMs, SQL, professional workflow),
+  the grader verification, and the auditable diff against today's 15 tracks
 
 ## License
 
