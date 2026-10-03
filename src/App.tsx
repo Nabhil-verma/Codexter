@@ -26,6 +26,14 @@ const Projects = lazy(() => import("./pages/Projects"));
 const Leaderboard = lazy(() => import("./pages/Leaderboard"));
 const Clans = lazy(() => import("./pages/Clans"));
 
+/*
+  The revamped UI (dark, Bento-grid, neon) lives beside the current pages rather
+  than replacing them. It is a self-contained design system with its own theme
+  layer, so it keeps its own route and its own lazy chunk: switching to it is a
+  URL away, and the entry bundle for existing visitors is unchanged.
+*/
+const RevampPreview = lazy(() => import("./revamp/RevampPreview"));
+
 /** Everything inside requires a signed-in account; guests go to /auth. */
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, authReady } = useAccount();
@@ -182,6 +190,7 @@ export default function App() {
               }
             />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/revamp" element={<RevampPreview />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

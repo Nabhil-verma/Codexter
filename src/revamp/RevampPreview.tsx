@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import "../codexter.css";
 import Arena from "./Arena";
 import Dashboard from "./Dashboard";
 import Landing from "./Landing";
@@ -26,6 +28,21 @@ const views: Array<{ id: View; label: string }> = [
   { id: "arena", label: "Arena" },
   { id: "leaderboard", label: "Leaderboard" },
 ];
+
+const viewIds = new Set<string>(views.map((v) => v.id));
+
+/**
+ * The open view lives in `?view=`, so each screen is linkable on its own and a
+ * reload lands where you were. Anything unrecognised falls back to the landing
+ * page rather than rendering a blank frame.
+ */
+function usePreviewView(): [View, (next: View) => void] {
+  const [params, setParams] = useSearchParams();
+  const requested = params.get("view");
+  const view: View = requested && viewIds.has(requested) ? (requested as View) : "landing";
+  const setView = (next: View) => setParams({ view: next }, { replace: true });
+  return [view, setView];
+}
 
 function ArenaDemo() {
   const [code, setCode] = useState(sampleStarterCode);
@@ -84,11 +101,11 @@ function ArenaDemo() {
 }
 
 export default function RevampPreview() {
-  const [view, setView] = useState<View>("landing");
+  const [view, setView] = usePreviewView();
   const noop = () => undefined;
 
   return (
-    <div className="bg-[#030305]">
+    <div className="codexter-dark min-h-screen bg-[#030305]">
       <div
         role="tablist"
         aria-label="Preview page"
