@@ -1,0 +1,1 @@
+function f(e){const t=[...e];for(let n=t.length-1;n>0;n--){const o=Math.floor(Math.random()*(n+1));[t[n],t[o]]=[t[o],t[n]]}if(t.some((n,o)=>n!==e[o]))return t;const r=t.findIndex(n=>n!==t[0]);return r===-1||([t[0],t[r]]=[t[r],t[0]]),t}export{f as s};
