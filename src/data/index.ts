@@ -1,4 +1,5 @@
 import type { Track } from "./types";
+import { debugChallenge } from "./debug-challenges";
 import { webTrack } from "./track-web";
 import { reactTrack } from "./track-react";
 import { backendTrack } from "./track-backend";
@@ -19,6 +20,31 @@ import { agentsTrack } from "./track-agents";
 export type { Track, Lesson } from "./types";
 export type { Check, QuizQuestion } from "./types";
 
+/*
+ * Taxonomy wiring (V2.1 follow-up). Every code that can block executed code
+ * now has a graded exercise, attached to the lesson whose subject it belongs
+ * to — HA, ID and CX had none, and the legacy off-by-one (EC) existed in the
+ * library without ever being rendered. `tests/taxonomy-coverage.test.ts`
+ * fails if a code loses its exercise or a wired id stops resolving.
+ */
+const TAXONOMY_WIRING: Record<string, string> = {
+  "web/es6-syntax": "off-by-one",
+  "dsa/big-o": "quadratic-dedupe",
+  "react/hooks-effect": "invented-helpers",
+  "backend/api-security": "trusted-role-header",
+};
+
+function wireTaxonomy(track: Track): Track {
+  return {
+    ...track,
+    lessons: track.lessons.map((lesson) => {
+      const id = TAXONOMY_WIRING[`${track.id}/${lesson.id}`];
+      if (!id) return lesson;
+      return { ...lesson, debug: debugChallenge(id) };
+    }),
+  };
+}
+
 export const tracks: Track[] = [
   webTrack,
   reactTrack,
@@ -36,7 +62,7 @@ export const tracks: Track[] = [
   typescriptTrack,
   performanceTrack,
   agentsTrack,
-];
+].map(wireTaxonomy);
 
 export function findTrack(trackId: string) {
   return tracks.find((t) => t.id === trackId);

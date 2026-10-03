@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import Nav from "../components/Nav";
@@ -25,6 +25,7 @@ import {
   type QuizQuestion,
 } from "../data";
 import { useProgress, useProgressState, scoreFor } from "../lib/progress";
+import { recordAttempt, type AttemptElement } from "../lib/telemetry";
 import { todayKey } from "../lib/gamification";
 
 export default function Lesson() {
@@ -35,6 +36,29 @@ export default function Lesson() {
   const progressState = useProgressState();
   const [exerciseDone, setExerciseDone] = useState(false);
   const [rapid, setRapid] = useState(false);
+  const key = track && lesson ? lessonKey(track.id, lesson.id) : "";
+
+  /*
+   * Every graded submission is recorded twice, on purpose. The progress map
+   * keeps the best score per lesson (that stays the completion gate); the
+   * attempt log keeps which grader produced it, the score and the order —
+   * the only way "first attempt" and "did the rubric pass while the quiz did
+   * not?" can be answered. Memoised because RapidFire keeps `onScore` in an
+   * effect dependency list.
+   */
+  const scorers = useMemo(() => {
+    const forElement = (element: AttemptElement) => (score: number) => {
+      if (score > 0) record(key, score, todayKey());
+      recordAttempt({ key, element, score, day: todayKey() });
+    };
+    return {
+      quiz: forElement("quiz"),
+      debug: forElement("debug"),
+      diff: forElement("diff"),
+      repo: forElement("repo"),
+      rubric: forElement("rubric"),
+    };
+  }, [key, record]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -58,7 +82,6 @@ export default function Lesson() {
     );
   }
 
-  const key = lessonKey(track.id, lesson.id);
   const idx = track.lessons.findIndex((l) => l.id === lesson.id);
   const prev = track.lessons[idx - 1];
   const next = track.lessons[idx + 1];
@@ -90,16 +113,6 @@ export default function Lesson() {
   ];
   const step = (name: string) =>
     ROMAN[STEPS.indexOf(name)] ?? ROMAN[0];
-
-  /*
-   * Partial credit is recorded — the best score per lesson wins — while
-   * completion still requires a full score. A 0.5 diagnosis or a 0.4/0.7
-   * review attempt is visible on the progress map and earns its lesson XP,
-   * but the lesson stays incomplete until the exercise is genuinely solved.
-   */
-  const handleScore = (score: number) => {
-    if (score > 0) record(key, score, todayKey());
-  };
 
   const completed = scoreFor(progressState, key) >= 1;
 
@@ -224,7 +237,7 @@ export default function Lesson() {
               <DebugLab
                 challenge={lesson.debug}
                 onPass={() => setExerciseDone(true)}
-                onScore={handleScore}
+                onScore={scorers.debug}
               />
             </section>
           </Reveal>
@@ -250,7 +263,7 @@ export default function Lesson() {
               <h2 className="eyebrow mb-4">{step("Review")} · Review</h2>
               <DiffLab
                 exercise={lesson.diff}
-                onScore={handleScore}
+                onScore={scorers.diff}
                 onPass={() => setExerciseDone(true)}
               />
             </section>
@@ -264,7 +277,7 @@ export default function Lesson() {
               <h2 className="eyebrow mb-4">{step("Trace")} · Trace</h2>
               <RepoLab
                 exercise={lesson.repo}
-                onScore={handleScore}
+                onScore={scorers.repo}
                 onPass={() => setExerciseDone(true)}
               />
             </section>
@@ -278,7 +291,7 @@ export default function Lesson() {
               <h2 className="eyebrow mb-4">{step("Write")} · Write</h2>
               <Rubric
                 exercise={lesson.rubric}
-                onScore={handleScore}
+                onScore={scorers.rubric}
                 onPass={() => setExerciseDone(true)}
               />
             </section>
@@ -345,9 +358,9 @@ export default function Lesson() {
               </div>
             </div>
             {rapid ? (
-              <RapidFire questions={quiz} onScore={handleScore} />
+              <RapidFire questions={quiz} onScore={scorers.quiz} />
             ) : (
-              <Quiz questions={quiz} onScore={handleScore} />
+              <Quiz questions={quiz} onScore={scorers.quiz} />
             )}
             {rapid && (
               <p className="mt-3 font-mono text-[11px] text-ink-500">

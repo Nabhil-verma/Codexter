@@ -482,18 +482,17 @@ Secrets and variables → Actions → New repository secret, using a deploy key 
 `accomplished-hyena-726`). Without the secret the job reports why and exits
 clean, so forks never fail. To deploy by hand instead: `bunx convex deploy`.
 
-> **Deploy key status.** The functions and schema **are live** on
+> **Deploy key status (re-verified 2026-10-03).** The functions and schema are live on
 > `accomplished-hyena-726` — `clans:mine`, `progress:get`, `progress:getClaims`
-> and `clans:list` all answer on the deployment today. What is *not* working is
-> the `CONVEX_DEPLOY_KEY` in this workspace, which the Convex API rejects with
-> `401 AuthenticationFailed: Invalid Convex deploy key` for both
-> `bunx convex deploy` and `bun convex dev --once`. So nothing is broken at
-> runtime, but **new** backend changes cannot be pushed from here until a fresh
-> key is generated (Convex dashboard → project → Settings → deploy keys) and
-> set as `CONVEX_DEPLOY_KEY` in Settings → Environment, and added as the GitHub
-> Actions secret above. The dev workspace is unaffected either way: it runs a
-> local Convex deployment, so typecheck, the full suite and the preview all work
-> without the key.
+> and `clans:list` all answer on the deployment today. The workspace credential
+> is accepted again: the earlier `401 AuthenticationFailed: Invalid Convex
+> deploy key` is no longer reproducible, and `bun convex dev --once` pushes to
+> the deployment. What is still
+> owner-managed is the GitHub Actions secret, so CI can run `bunx convex deploy`
+> on push (repository → Settings → Secrets and variables → Actions →
+> `CONVEX_DEPLOY_KEY`). Until it is set, that job explains why and exits clean,
+> and nothing is broken at runtime: the app keeps running against the live
+> deployment.
 
 One deliberate consequence of the hard-coded deployment constant: **this app has
 one cloud deployment, not a dev/prod pair.** Convex labels it "Development"

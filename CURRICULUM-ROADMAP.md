@@ -5,7 +5,8 @@ below is in the repository and covered by tests. The two courses that were
 listed here as *proposed* are now built (§3.2), so the only item still open in
 §8 is a credential the project owner has to mint.
 
-Numbers in this document are the real ones: **15 tracks, 86 lessons**, up from
+Numbers in this document are the real ones: **16 tracks, 95 lessons** (the 15/86
+this document was written against plus Track XVI, the agents track), up from
 10 tracks and 56 lessons.
 
 ---
@@ -462,12 +463,12 @@ Six real learners' reports, each one a specific defect rather than a preference:
 
 ## 9. Verification
 
-Everything in this document is enforced by the suite — **171 tests across 17
+Everything in this document is enforced by the suite — **257 tests across 26
 files**, up from 79:
 
 ```
 bun tsc -b --noEmit     # clean
-bun x vitest run        # 171 passing
+bun x vitest run        # 257 passing
 ```
 
 And the same two commands now run on every push and pull request, so this

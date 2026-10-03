@@ -1,4 +1,5 @@
 import type { DebugChallenge, Hint } from "./types";
+import { EXTRA_CHALLENGES, LEGACY_DIAGNOSES } from "./taxonomy-extras";
 
 /* ═══════════════════════════════════════════════════════════════
    Break-and-fix library.
@@ -20,7 +21,7 @@ const h = (tier: 1 | 2 | 3, text: string): Hint => ({ tier, text });
 const line = (n: number) =>
   `output.split("\\n")[${n}].trim()`;
 
-export const DEBUG_CHALLENGES: DebugChallenge[] = [
+const LEGACY_CHALLENGES: DebugChallenge[] = [
   {
     id: "off-by-one",
     title: "The Off-By-One",
@@ -425,7 +426,25 @@ setTimeout(() => {
   },
 ];
 
-const BY_ID = new Map(DEBUG_CHALLENGES.map((c) => [c.id, c]));
+/**
+ * The library as learners see it. The legacy entries predate the diagnosis
+ * field, so their taxonomy diagnoses are merged in here from
+ * `taxonomy-extras.ts` — which also carries the three challenges that plant
+ * the codes this library never did (HA, ID and CX, wired to lessons by the
+ * registry in `src/data/index.ts`).
+ */
+export const DEBUG_CHALLENGES: DebugChallenge[] = LEGACY_CHALLENGES.map((c) => ({
+  ...c,
+  diagnosis: c.diagnosis ?? LEGACY_DIAGNOSES[c.id],
+}));
+
+/** Every executable challenge: the legacy library plus the taxonomy extras. */
+export const ALL_CHALLENGES: DebugChallenge[] = [
+  ...DEBUG_CHALLENGES,
+  ...EXTRA_CHALLENGES,
+];
+
+const BY_ID = new Map(ALL_CHALLENGES.map((c) => [c.id, c]));
 
 /**
  * Lookup used by lesson definitions, so a challenge lives in exactly one

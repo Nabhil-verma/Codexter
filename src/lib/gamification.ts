@@ -27,28 +27,46 @@ type DayBucket = {
 };
 
 /**
- * Group the progress map by the day each key was stamped. Derived, never
- * persisted — the whole game layer stays replayable from one source of truth.
+ * The best score for one lesson, and the day that score landed. Partial
+ * credit records a new day key every time a best score improves, so the map
+ * can hold several keys for the same lesson (0.4 on Monday, 0.7 on Tuesday,
+ * 1.0 on Wednesday). Everything below is computed per *lesson*, from this
+ * single entry — otherwise one lesson pays its XP once per improving day.
+ */
+function lessonBests(progress: Progress): Map<string, { score: number; day: string }> {
+  const bests = new Map<string, { score: number; day: string }>();
+  for (const [key, score] of Object.entries(progress.completed)) {
+    const id = lessonIdOf(key);
+    const day = key.split("!")[1] ?? "";
+    const prev = bests.get(id);
+    if (!prev || score > prev.score) bests.set(id, { score, day });
+  }
+  return bests;
+}
+
+/**
+ * Group the progress map by the day each lesson's best score landed. A
+ * lesson counts once: on the day its current best was achieved (ties keep
+ * the earliest day, so history is stable), which is also the day its XP and
+ * flawless credit belong to.
  */
 export function dayBuckets(progress: Progress): Map<string, DayBucket> {
   const map = new Map<string, DayBucket>();
-  for (const [key, score] of Object.entries(progress.completed)) {
-    const day = key.split("!")[1] ?? "";
-    const b = map.get(day) ?? { day, lessons: 0, xp: 0, flawless: 0 };
+  for (const best of lessonBests(progress).values()) {
+    const b = map.get(best.day) ?? { day: best.day, lessons: 0, xp: 0, flawless: 0 };
     b.lessons += 1;
-    b.xp += lessonXp(score);
-    if (score >= 1) b.flawless += 1;
-    map.set(day, b);
+    b.xp += lessonXp(best.score);
+    if (best.score >= 1) b.flawless += 1;
+    map.set(best.day, b);
   }
   return map;
 }
 
-/** Sum of lesson XP only — no quest bonuses. */
+/** Sum of lesson XP only — exactly one payment per lesson, at its best score. */
 export function lessonXpTotal(progress: Progress): number {
-  return Object.values(progress.completed).reduce(
-    (sum, score) => sum + lessonXp(score),
-    0
-  );
+  let sum = 0;
+  for (const { score } of lessonBests(progress).values()) sum += lessonXp(score);
+  return sum;
 }
 
 /* ------------------ Daily quests + consistency bonus ------------------ */

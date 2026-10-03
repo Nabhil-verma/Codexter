@@ -7,6 +7,8 @@ import {
   finishedTracks,
   lessonsToday,
   activeDays,
+  dayBuckets,
+  lessonXpTotal,
   todayKey,
   previousDayKeys,
 } from "../src/lib/gamification";
@@ -33,6 +35,24 @@ describe("XP & levels", () => {
 
   it("returns 0 XP for empty progress", () => {
     expect(totalXp(progressWith({}))).toBe(0);
+  });
+
+  it("pays a lesson once, even when a partial score improves across days", () => {
+    // Partial credit records a new day key each time the best score improves
+    // (0.4 → 0.7 → 1.0). The lesson must still pay exactly one lesson's XP —
+    // 75 at its best score, not 50 per recorded day — and it belongs to the
+    // day the best score landed.
+    const ladder = progressWith({
+      "agents/verifying-agent-output!2026-09-13": 0.4,
+      "agents/verifying-agent-output!2026-09-14": 0.7,
+      "agents/verifying-agent-output!2026-09-15": 1,
+    });
+    expect(lessonXpTotal(ladder)).toBe(75);
+
+    const buckets = dayBuckets(ladder);
+    expect(buckets.get("2026-09-15")).toMatchObject({ lessons: 1, xp: 75, flawless: 1 });
+    expect(buckets.has("2026-09-13")).toBe(false);
+    expect(buckets.has("2026-09-14")).toBe(false);
   });
 
   it("levels up every 250 XP with correct progress within the level", () => {
