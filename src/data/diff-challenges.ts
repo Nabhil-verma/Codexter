@@ -232,6 +232,190 @@ export async function searchProducts(query: string): Promise<Product[]> {
       },
     ],
   },
+  {
+    id: "upload-retry-blocks-400",
+    title: "The Retry That Multiplied Bad Requests",
+    brief:
+      "PR: \"add retry with backoff to uploads — tested locally\". The retry looks careful: bounded attempts, growing delay, jitter. Read the error path before you approve it.",
+    files: [
+      {
+        path: "src/lib/retry.ts",
+        before: `export type Attempt = { attempt: number; delayMs: number };
+
+/** Run \`fn\` once; callers handled their own failures. */
+export async function withRetry<T>(
+  fn: (attempt: number) => Promise<T>
+): Promise<T> {
+  return fn(1);
+}`,
+        after: `export type Attempt = { attempt: number; delayMs: number };
+
+const MAX_ATTEMPTS = 5;
+const BASE_DELAY_MS = 200;
+
+/**
+ * Retry with exponential backoff and jitter.
+ * Handles flaky networks and transient 5xx responses.
+ */
+export async function withRetry<T>(
+  fn: (attempt: number) => Promise<T>,
+  res: Response,
+  nextAttempt = 1
+): Promise<T> {
+  try {
+    return await fn(nextAttempt);
+  } catch (err) {
+    if (nextAttempt >= MAX_ATTEMPTS) throw err;
+    if (res.status >= 400) return withRetry(fn, res, nextAttempt + 1);
+    const delay = BASE_DELAY_MS * 2 ** (nextAttempt - 1);
+    const jitter = Math.random() * 50;
+    await new Promise((r) => setTimeout(r, delay + jitter));
+    return withRetry(fn, res, nextAttempt + 1);
+  }
+}`,
+      },
+      {
+        path: "src/lib/upload.ts",
+        before: `import { withRetry } from "./retry";
+
+export async function uploadChunk(
+  chunk: Blob,
+  endpoint: string
+): Promise<void> {
+  const res = await fetch(endpoint, { method: "PUT", body: chunk });
+  if (!res.ok) throw new Error(\`upload failed: \${res.status}\`);
+}`,
+        after: `import { withRetry } from "./retry";
+
+export async function uploadChunk(
+  chunk: Blob,
+  endpoint: string
+): Promise<void> {
+  const res = await fetch(endpoint, { method: "PUT", body: chunk });
+  if (!res.ok) throw new Error(\`upload failed: \${res.status}\`);
+}
+
+/** Upload every chunk, retrying transient failures. */
+export async function uploadAll(
+  chunks: Blob[],
+  endpoint: string
+): Promise<void> {
+  for (const chunk of chunks) {
+    const res = await fetch(endpoint, { method: "PUT", body: chunk });
+    await withRetry(async () => {
+      if (!res.ok) throw new Error(\`upload failed: \${res.status}\`);
+    }, res);
+  }
+}`,
+      },
+      {
+        path: "src/hooks/useUpload.ts",
+        before: `import { useState } from "react";
+import { uploadChunk } from "../lib/upload";
+
+export function useUpload(endpoint: string) {
+  const [progress, setProgress] = useState(0);
+
+  async function send(chunks: Blob[]) {
+    for (let i = 0; i < chunks.length; i++) {
+      await uploadChunk(chunks[i], endpoint);
+      setProgress(Math.round(((i + 1) / chunks.length) * 100));
+    }
+  }
+
+  return { progress, send };
+}`,
+        after: `import { useState } from "react";
+import { uploadAll } from "../lib/upload";
+
+export function useUpload(endpoint: string) {
+  const [progress, setProgress] = useState(0);
+
+  async function send(chunks: Blob[]) {
+    console.log(\`uploading \${chunks.length} chunks to \${endpoint}\`);
+    await uploadAll(chunks, endpoint);
+    setProgress(100);
+  }
+
+  return { progress, send };
+}`,
+      },
+      {
+        path: "src/lib/retry.test.ts",
+        before: `import { describe, expect, it } from "vitest";
+
+describe("retry", () => {
+  it("placeholder", () => {
+    expect(true).toBe(true);
+  });
+});`,
+        after: `import { describe, expect, it, vi } from "vitest";
+import { withRetry } from "./retry";
+
+describe("withRetry", () => {
+  it("retries until the call succeeds", async () => {
+    let calls = 0;
+    const fn = vi.fn(async () => {
+      calls += 1;
+      if (calls < 3) throw new Error("503");
+      return "ok";
+    });
+    const res = new Response(null, { status: 503 });
+    expect(await withRetry(fn, res)).toBe("ok");
+    expect(fn).toHaveBeenCalledTimes(3);
+  });
+});`,
+      },
+      {
+        path: "package.json",
+        before: `{
+  "name": "uploader",
+  "dependencies": {
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}`,
+        after: `{
+  "name": "uploader",
+  "dependencies": {
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}`,
+      },
+    ],
+    planted: {
+      file: "src/lib/retry.ts",
+      line: 19,
+      category: "SL",
+      why: "The guard retries any status >= 400, so a 400 (the request itself is malformed) is retried exactly like a 503. A bad request becomes five bad requests, and the learner's own test only exercises the 503 path — which is why the suite is green. Retry only what can succeed later: 408, 429 and 5xx. Everything else should fail fast.",
+    },
+    distractors: [
+      "The `console.log` added in src/hooks/useUpload.ts — it prints the chunk count and endpoint, no payload or credential. A nit, not a blocker.",
+      "The vite patch bump in package.json — unrelated housekeeping, correct and harmless.",
+      "The new src/lib/retry.test.ts only covers the success-after-retries path — thin, worth a follow-up comment, but the behaviour it asserts is correct for a 503.",
+    ],
+    hints: [
+      {
+        tier: 1,
+        text: "Read the error path before the happy path. Which failures does this code decide are worth retrying, and is that decision made on the right signal?",
+      },
+      {
+        tier: 2,
+        text: "The test only exercises a 503. Follow a 400 through the same code: what does the retry loop do with a request the server will never accept?",
+      },
+      {
+        tier: 3,
+        text: "The planted line is the status guard in src/lib/retry.ts. Retrying is for failures that can succeed on a later attempt — 408, 429, 5xx. A 4xx validation failure should propagate immediately.",
+      },
+    ],
+  },
 ];
 
 const BY_ID = new Map(DIFF_CHALLENGES.map((c) => [c.id, c]));

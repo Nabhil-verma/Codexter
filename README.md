@@ -1,6 +1,6 @@
 # Codexter
 
-> **A 100% free, interactive code teacher.** Sixteen tracks, 95 hands-on lessons —
+> **A 100% free, interactive code teacher.** Seventeen tracks, 99 hands-on lessons —
 > you write and run real code from minute one, in the browser, with easy signup.
 
 **Live:** [nnghedico.freebuff.app](https://nnghedico.freebuff.app)
@@ -63,7 +63,7 @@ A few consequences worth calling out, because they're unusual for a learning app
 
 ## Feature overview
 
-- **16 curriculum tracks, 95 lessons** — Web foundations, React, Tailwind UI
+- **17 curriculum tracks, 99 lessons** — Web foundations, React, Tailwind UI
   engineering, advanced React state, API integration, TypeScript for real
   projects, backend/Node, DSA, Python, Git & testing, DevOps/Linux/Docker, web
   security (OWASP), system design, web performance & accessibility,
@@ -147,9 +147,17 @@ A few consequences worth calling out, because they're unusual for a learning app
 | XIII | Web Security & OWASP | `security` | 5 | XSS, CSRF, injection, auth flaws, and how each one is exploited |
 | XIV | System Design & Architecture | `architecture` | 6 | Caching, LRU, rate limiting, queues, and scaling vocabulary |
 | XV | Web Performance & Accessibility | `performance` | 6 | Core Web Vitals and a11y as *measured* numbers |
+| XVI | Working with Coding Agents | `agents` | 9 | Specs, archaeology, context, instruction files, plan approval, permissions, verification, capstone |
+| XIX | Professional Workflow | `workflow` | 4 | PR descriptions, reviewing someone else's diff, scoping a vague request, decision records |
 
 Reading lessons teach; the rest end in something runnable. Tracks share no
 numerals, and a test pins that.
+
+**Optional tracks (Tier 2).** `tailwind`, `python`, `devops`, `architecture`
+and `performance` are marked `optional` in the registry and split into their
+own section of the Learn page: framework-specific or lower-priority for
+generalist screening, but fully playable and still counted for XP, ranks and
+certificates.
 
 ## Nine ways to practise
 
@@ -360,7 +368,7 @@ src/
 ├── data/
 │   ├── index.ts              # the track registry + findTrack/findLesson
 │   ├── types.ts              # Lesson, Check, DebugChallenge, PreviewSpec, …
-│   └── track-*.ts            # 16 tracks, 95 lessons of content
+│   └── track-*.ts            # 17 tracks, 99 lessons of content
 ├── lib/
 │   ├── localStore.ts         # the shared localStorage store + pub/sub primitive
 │   ├── progress.ts           # progress store on top of it, v1→v2 migration

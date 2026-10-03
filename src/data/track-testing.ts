@@ -1,4 +1,5 @@
 import type { Track } from "./types";
+import { diffChallenge } from "./diff-challenges";
 
 export const testingTrack: Track = {
   id: "testing",
@@ -379,6 +380,12 @@ Rules: **always await** async assertions (an un-awaited promise passes vacuously
       id: "debug-the-bug",
       title: "Debug the Bug: Fix Three Broken Programs",
       minutes: 15,
+      // Station 3 (V2.1 Fix 2 propagation): the single-file repair stations
+      // still teach repair, but real bugs arrive inside a multi-file surface
+      // where *finding* the line is half the work. The review below plants the
+      // same class of defect — a stale response becoming state — inside a
+      // five-file agent PR.
+      diff: diffChallenge("agent-pr-search-race"),
       body: `Reading code is easy. **Fixing broken code** is the actual job. Each program below runs without crashing — it just produces the wrong answer. Your tools: run it, read the output, form a hypothesis, change one thing, run again.
 
 **The debugging loop (use it every time):**

@@ -111,3 +111,29 @@ describe("Track XVI labs render through the lesson page", () => {
     expect(screen.getByRole("heading", { name: /·\s*Prove it/ })).toBeTruthy();
   });
 });
+
+describe("the Wave 1 additions render", () => {
+  it("renders the Python lesson with its own editor and runtime note", () => {
+    renderLesson("python", "python-llm-api");
+
+    expect(screen.getByRole("heading", { name: /·\s*Run/ })).toBeTruthy();
+    expect(screen.getByText(/editor\.py/)).toBeTruthy();
+    expect(screen.getByText(/Pyodide/)).toBeTruthy();
+    // The JS-only trace toggle must not appear for a Python exercise.
+    expect(screen.queryByText(/visual execution trace/)).toBeNull();
+  });
+
+  it("renders the workflow diff review with its submit control", () => {
+    renderLesson("workflow", "reviewing-diffs");
+
+    expect(screen.getByRole("heading", { name: /·\s*Review/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Submit review/ })).toBeTruthy();
+  });
+
+  it("renders the testing station's diff alongside its own repair lab", () => {
+    renderLesson("testing", "debug-the-bug");
+
+    expect(screen.getByRole("heading", { name: /·\s*Run/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /·\s*Review/ })).toBeTruthy();
+  });
+});

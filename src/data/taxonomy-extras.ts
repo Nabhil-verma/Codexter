@@ -70,6 +70,136 @@ export const LEGACY_DIAGNOSES: Record<string, Diagnosis> = {
 
 export const EXTRA_CHALLENGES: DebugChallenge[] = [
   {
+    id: "semantics-refactor",
+    title: "The Refactor That Changed What the Code Means",
+    brief:
+      "The agent's note says 'modernised to default parameters — no behaviour change'. Two of the four printed lines say otherwise: the count is wrong whenever a value is falsy.",
+    broken: `function repeat(times, label) {
+  // modernised: concise defaults instead of the explicit checks
+  const count = times || 1;
+  const name = label || "item";
+  return Array.from({ length: count }, (_, i) => name + " #" + (i + 1));
+}
+
+console.log("default:", repeat().join(", "));
+console.log("zero:", repeat(0).length);
+console.log("empty label kept:", repeat(2, "")[0] === " #1");
+console.log("three:", repeat(3, "row").length);`,
+    fixCheck:
+      'output.includes("zero: 0") && output.includes("empty label kept: true") && output.includes("three: 3")',
+    win: "An explicit `=== undefined` check keeps 0 and the empty string, which are legitimate values — `||` silently replaced both.",
+    hints: [
+      h(
+        1,
+        "Run it. Three lines are right and one is wrong — compare the value each call passes with the value the function ends up using."
+      ),
+      h(
+        2,
+        "`||` replaces every falsy value, and `??` replaces only null/undefined. Which of the four calls passes a value that is falsy but legitimate?"
+      ),
+      h(
+        3,
+        "The `|| 1` on `times` is the defect: `0` is a legitimate count that `||` throws away. Test for the missing value explicitly — `times === undefined ? 1 : times` — and do the same for `label`."
+      ),
+    ],
+    solution:
+      "The refactor is not behaviour-preserving, and the note claims it is. `||` substitutes for *every* falsy value, so `repeat(0)` builds a one-item array instead of an empty one and `repeat(2, \"\")` replaces the deliberately empty label. The fix is to say what you mean: `times === undefined ? 1 : times` and `label === undefined ? \"item\" : label`. The lesson is the general one — a semantic change can hide inside a style change, and the agent's summary is a claim about its own work, not evidence.",
+    fix: `function repeat(times, label) {
+  const count = times === undefined ? 1 : times;
+  const name = label === undefined ? "item" : label;
+  return Array.from({ length: count }, (_, i) => name + " #" + (i + 1));
+}
+
+console.log("default:", repeat().join(", "));
+console.log("zero:", repeat(0).length);
+console.log("empty label kept:", repeat(2, "")[0] === " #1");
+console.log("three:", repeat(3, "row").length);`,
+    diagnosis: {
+      prompt: "What kind of defect is this?",
+      codes: ["EC", "SL", "RC", "CX"],
+      answer: "EC",
+    },
+  },
+  {
+    id: "ai-sort-comparator",
+    title: "The Sort That Only Works on Small Inputs",
+    brief:
+      "The comment says 'handles duplicates'. The unsorted case passes, the duplicate case passes, and the already-sorted case produces a different order on every run.",
+    broken: `const ops = { compares: 0 };
+const BUDGET = 100000;
+
+function quickSort(items) {
+  // handles duplicates
+  if (items.length <= 1) return items;
+  const pivot = items[0];
+  const left = [];
+  const right = [];
+  for (const item of items.slice(1)) {
+    ops.compares++;
+    if (ops.compares > BUDGET) throw new Error("operation budget exceeded");
+    if (item <= pivot) left.push(item);
+    else right.push(item);
+  }
+  return [...quickSort(left), pivot, ...quickSort(right)];
+}
+
+const sorted = Array.from({ length: 400 }, (_, i) => i);
+console.log("already sorted:", JSON.stringify(quickSort(sorted)) === JSON.stringify(sorted));
+console.log("compares:", ops.compares);
+console.log("duplicates:", quickSort([3, 1, 3, 2]).join(","));`,
+    fixCheck:
+      'output.includes("already sorted: true") && output.includes("duplicates: 1,2,3,3") && output.includes("compares: 2953")',
+    win: "A pivot taken from the middle of the array keeps the recursion balanced: 400 items cost ~2,400 comparisons instead of tripping the budget on an already-sorted input.",
+    hints: [
+      h(
+        1,
+        "Run it and read the budget error. Which input shape is worst for a pivot chosen from the first element?"
+      ),
+      h(
+        2,
+        "Taking `items[0]` as the pivot means an already-sorted array puts *everything* on one side, every time — the recursion never divides. The comparison count is the proof."
+      ),
+      h(
+        3,
+        "Choose the pivot from the middle (`items[items.length >> 1]`) and skip it when partitioning. Keep the `<=` on the left partition so duplicates stay stable in count."
+      ),
+    ],
+    solution:
+      "Two defects in one function. (1) **Complexity:** the pivot is the first element, so an already-sorted array degenerates to O(n²) — 400 items means 79,800 comparisons, and a slightly larger input trips the budget outright. Choosing the middle element restores the balanced case: 2,953 comparisons, which is n·log₂(n) rounded. (2) **Silent logic:** the check asserts the printed count, so a fix that merely raised the budget still fails — the operation count is the evidence that the complexity actually changed, not the absence of an error. This is the shape of the AI-sort bug the DSA track exists to teach: correct on the sample, wrong on the input that matters.",
+    fix: `const ops = { compares: 0 };
+const BUDGET = 100000;
+
+function quickSort(items) {
+  if (items.length <= 1) return items;
+  const pivot = items[items.length >> 1];
+  const left = [];
+  const right = [];
+  let equal = 0;
+  for (const item of items) {
+    ops.compares++;
+    if (ops.compares > BUDGET) throw new Error("operation budget exceeded");
+    if (item < pivot) left.push(item);
+    else if (item > pivot) right.push(item);
+    else equal++;
+  }
+  return [
+    ...quickSort(left),
+    ...Array.from({ length: equal }, () => pivot),
+    ...quickSort(right),
+  ];
+}
+
+const sorted = Array.from({ length: 400 }, (_, i) => i);
+console.log("already sorted:", JSON.stringify(quickSort(sorted)) === JSON.stringify(sorted));
+console.log("compares:", ops.compares);
+console.log("duplicates:", quickSort([3, 1, 3, 2]).join(","));`,
+    diagnosis: {
+      prompt: "What kind of defect is this?",
+      codes: ["CX", "SL", "EC", "RC"],
+      answer: "CX",
+    },
+  },
+  {
     id: "quadratic-dedupe",
     title: "The Duplicate Check That Cost a Quarter Million Comparisons",
     brief:

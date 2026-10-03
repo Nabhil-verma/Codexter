@@ -29,6 +29,14 @@ import {
   resetClaims,
   subscribeClaims,
 } from "./lib/milestoneStore";
+import {
+  aggregateAttempts,
+  applyCloudAttempts,
+  loadTelemetry,
+  resetTelemetry,
+  subscribeTelemetry,
+  type AttemptAggs,
+} from "./lib/telemetry";
 import { mergeClaims, type Claims } from "./lib/milestones";
 import { toAbsoluteUrl } from "./lib/url";
 import { authMessage } from "./lib/friendlyError";
@@ -74,13 +82,18 @@ function ConvexAccount({ children }: { children: ReactNode }) {
   const me = useQuery(api.users.me); // undefined=loading · null=signed out
   const cloud = useQuery(api.progress.get);
   const cloudClaims = useQuery(api.progress.getClaims);
+  const cloudAttempts = useQuery(api.progress.getAttempts);
   const saveRow = useMutation(api.progress.save);
   const saveClaimsRow = useMutation(api.progress.saveClaims);
+  const saveAttemptsRow = useMutation(api.progress.saveAttempts);
   const wipeRow = useMutation(api.progress.wipe);
   const saveProfile = useMutation(api.profiles.sync);
 
   const [sync, setSync] = useState<SyncState>("idle");
   const lastPulled = useRef("");
+  const lastPulledAttempts = useRef("");
+  const lastPushedAttempts = useRef("");
+  const attemptsPushTimer = useRef<number | null>(null);
   const lastPushed = useRef("");
   const pushTimer = useRef<number | null>(null);
   const lastPulledClaims = useRef("");
@@ -176,6 +189,43 @@ function ConvexAccount({ children }: { children: ReactNode }) {
     };
   }, [signedIn, saveClaimsRow]);
 
+  /* Pull: fold the account's attempt aggregates into the local view. Merged,
+     never overwritten — this device may hold attempts the cloud has not seen. */
+  useEffect(() => {
+    if (!signedIn || !cloudAttempts) return;
+    const serial = JSON.stringify(cloudAttempts);
+    if (serial === lastPulledAttempts.current) return;
+    lastPulledAttempts.current = serial;
+    applyCloudAttempts(cloudAttempts as AttemptAggs);
+  }, [signedIn, cloudAttempts]);
+
+  /*
+   * Attempt aggregates. The push sends a *summary* per lesson (first / best /
+   * count), not the raw log: the server keeps the earliest first and the
+   * highest best, so a second device can only add information. The cloud
+   * aggregate map is also what the gate readouts use once signed in.
+   */
+  useEffect(() => {
+    if (!signedIn) return;
+    const unsub = subscribeTelemetry(() => {
+      const aggs = aggregateAttempts(loadTelemetry());
+      const serial = JSON.stringify(aggs);
+      if (serial === lastPushedAttempts.current) return;
+      lastPushedAttempts.current = serial;
+      setSync("syncing");
+      if (attemptsPushTimer.current) window.clearTimeout(attemptsPushTimer.current);
+      attemptsPushTimer.current = window.setTimeout(() => {
+        saveAttemptsRow({ attempts: aggregateAttempts(loadTelemetry()) })
+          .then(() => setSync("synced"))
+          .catch(() => setSync("error"));
+      }, 600);
+    });
+    return () => {
+      unsub();
+      if (attemptsPushTimer.current) window.clearTimeout(attemptsPushTimer.current);
+    };
+  }, [signedIn, saveAttemptsRow]);
+
   /*
    * Publish the public player card. Everything here is derived from the local
    * progress map, so the leaderboard can sort server-side without the server
@@ -256,10 +306,13 @@ function ConvexAccount({ children }: { children: ReactNode }) {
     resetLocalProgress();
     resetClaims();
     resetClanRewards();
+    resetTelemetry();
     lastPulled.current = "";
     lastPushed.current = "";
     lastPulledClaims.current = "";
     lastPushedClaims.current = "";
+    lastPulledAttempts.current = "";
+    lastPushedAttempts.current = "";
     setSync("idle");
   }, [act]);
 
@@ -270,8 +323,10 @@ function ConvexAccount({ children }: { children: ReactNode }) {
     // back into the account's XP.
     resetClaims();
     resetClanRewards();
+    resetTelemetry();
     lastPushed.current = "";
     lastPushedClaims.current = "";
+    lastPushedAttempts.current = "";
     if (signedIn) {
       try {
         await wipeRow({});

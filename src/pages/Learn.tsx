@@ -287,12 +287,29 @@ export default function Learn() {
             <MicroPractice />
           </Reveal>
 
+          {/*
+           * Core path first, optional material second. The split is metadata
+           * on the track (Tier 2), not a demotion: optional tracks are fully
+           * playable and still count for XP, ranks and certificates.
+           */}
           <div className="mt-14 space-y-12">
-            {tracks.map((track, ti) => {
+            {[...tracks.filter((t) => !t.optional), ...tracks.filter((t) => t.optional)].map((track, ti) => {
               const trackDone = track.lessons.filter((l) => scoreFor(progress, lessonKey(track.id, l.id)) >= 1).length;
+              const firstOptional = track.optional && ti > 0 && !tracks[ti - 1]?.optional;
               return (
               <Reveal key={track.id}>
                 <section>
+                  {firstOptional && (
+                    <div className="mb-6 rounded-2xl border border-dashed border-paper-300 bg-paper-50/60 px-5 py-4">
+                      <p className="eyebrow">optional tracks</p>
+                      <p className="mt-1 text-sm leading-relaxed text-ink-600">
+                        Framework-specific or lower-priority-for-screening
+                        material. Fully playable, still counts for XP and
+                        certificates — take these when your target stack or the
+                        job description names them.
+                      </p>
+                    </div>
+                  )}
                   <div className="mb-5 flex items-baseline gap-4 border-b border-paper-200 pb-4">
                     <span className="font-display text-2xl gradient-text">
                       {String(ti + 1).padStart(2, "0")}
@@ -300,8 +317,17 @@ export default function Learn() {
                     <div>
                       <h2 className="font-display text-2xl font-semibold text-ink-950">
                         {track.title}
+                        {track.optional && (
+                          <span className="ml-3 align-middle rounded-full border border-paper-300 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-500">
+                            optional
+                          </span>
+                        )}
                       </h2>
-                      <p className="text-sm text-ink-600">{track.blurb}</p>
+                      <p className="text-sm text-ink-600">
+                        {track.optional && track.optionalWhy
+                          ? track.optionalWhy
+                          : track.blurb}
+                      </p>
                     </div>
                   </div>
                   <ol className="space-y-1">

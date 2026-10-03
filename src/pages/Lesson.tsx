@@ -151,7 +151,9 @@ export default function Lesson() {
               {lesson.starter
                 ? lesson.lang === "ts"
                   ? "typescript"
-                  : "interactive"
+                  : lesson.lang === "python"
+                    ? "python"
+                    : "interactive"
               : lesson.debug
                 ? "break & fix"
                 : lesson.diff
@@ -193,6 +195,7 @@ export default function Lesson() {
                 starter={lesson.starter}
                 check={lesson.check}
                 lang={lesson.lang}
+                pythonPrelude={lesson.pythonPrelude}
                 onPass={() => setExerciseDone(true)}
               />
             </section>

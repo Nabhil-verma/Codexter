@@ -5,6 +5,9 @@ export const devopsTrack: Track = {
   title: "DevOps, Linux CLI & Cloud",
   blurb: "Command the terminal, write Bash, containerize with Docker, and ship behind Nginx.",
   numeral: "Ⅷ",
+  optional: true,
+  optionalWhy:
+    "Six lessons of deployment and container practice. Essential for platform-adjacent roles, background literacy otherwise — and the vocabulary it teaches is a prerequisite for production debugging.",
   lessons: [
     {
       id: "bash-basics",

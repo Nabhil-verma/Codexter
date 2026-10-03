@@ -201,6 +201,115 @@ describe("claims on the server", () => {
   });
 });
 
+describe("attempt aggregates on the server", () => {
+  it("round-trips and merges without ever rewinding a first attempt", async () => {
+    const t = server();
+    const userId = await makeUser(t, "ada@attempts.test");
+    const me = t.withIdentity({ subject: userId });
+
+    expect(await me.query(api.progress.getAttempts, {})).toEqual({});
+
+    await me.mutation(api.progress.saveAttempts, {
+      attempts: {
+        "agents/verifying-agent-output": { first: 0.4, best: 0.4, attempts: 1, at: 100 },
+      },
+    });
+    // A second device that attempted later and scored better.
+    await me.mutation(api.progress.saveAttempts, {
+      attempts: {
+        "agents/verifying-agent-output": { first: 1, best: 1, attempts: 1, at: 200 },
+        "web/es6-syntax": { first: 0, best: 0.7, attempts: 3, at: 300 },
+      },
+    });
+
+    const back = (await me.query(api.progress.getAttempts, {}))!;
+    // The earlier device's 0.4 is the real first attempt; best is the max.
+    expect(back["agents/verifying-agent-output"]).toEqual({
+      first: 0.4,
+      best: 1,
+      attempts: 1,
+      at: 200,
+    });
+    expect(back["web/es6-syntax"]).toEqual({ first: 0, best: 0.7, attempts: 3, at: 300 });
+  });
+
+  it("drops malformed aggregates and never stores an empty map", async () => {
+    const t = server();
+    const userId = await makeUser(t, "ada@attempts-junk.test");
+    const me = t.withIdentity({ subject: userId });
+
+    await me.mutation(api.progress.saveAttempts, {
+      attempts: {
+        "not-an-object": 5,
+        "zero-count": { first: 0.5, best: 0.5, attempts: 0, at: 1 },
+        "bad-first": { first: "x", best: 1, attempts: 2, at: 1 },
+        "clamped": { first: 5, best: -2, attempts: 1.9, at: 1 },
+      },
+    });
+
+    const back = (await me.query(api.progress.getAttempts, {}))!;
+    expect(Object.keys(back)).toEqual(["clamped"]);
+    expect(back["clamped"]).toEqual({ first: 1, best: 0, attempts: 1, at: 1 });
+
+    // An all-junk push writes nothing at all — not even a row.
+    const t2 = server();
+    const u2 = await makeUser(t2, "ada@attempts-empty.test");
+    const me2 = t2.withIdentity({ subject: u2 });
+    await me2.mutation(api.progress.saveAttempts, { attempts: { x: 1 } });
+    expect(await me2.query(api.progress.getAttempts, {})).toEqual({});
+    const rows = await t2.run((ctx) => ctx.db.query("progress").collect());
+    expect(rows).toHaveLength(0);
+  });
+
+  it("keeps attempts, scores and claims on one row without clobbering each other", async () => {
+    const t = server();
+    const userId = await makeUser(t, "ada@attempts-row.test");
+    const me = t.withIdentity({ subject: userId });
+
+    await me.mutation(api.progress.save, { data: { "web/html!2026-05-01": 1 } });
+    await me.mutation(api.progress.saveClaims, {
+      claims: { "m-shell": { at: "2026-05-02", deliverables: [0] } },
+    });
+    await me.mutation(api.progress.saveAttempts, {
+      attempts: { "web/html": { first: 0.5, best: 1, attempts: 2, at: 10 } },
+    });
+
+    // Each later writer must leave the other two fields intact.
+    expect((await me.query(api.progress.get, {}))!["web/html!2026-05-01"]).toBe(1);
+    expect(await me.query(api.progress.getClaims, {})).toEqual({
+      "m-shell": { at: "2026-05-02", deliverables: [0] },
+    });
+    expect((await me.query(api.progress.getAttempts, {}))!["web/html"]).toEqual({
+      first: 0.5,
+      best: 1,
+      attempts: 2,
+      at: 10,
+    });
+  });
+
+  it("is a no-op when signed out", async () => {
+    const t = server();
+    await t.mutation(api.progress.saveAttempts, {
+      attempts: { "web/html": { first: 0.5, best: 1, attempts: 1, at: 1 } },
+    });
+    expect(await t.query(api.progress.getAttempts, {})).toBe(null);
+    const rows = await t.run((ctx) => ctx.db.query("progress").collect());
+    expect(rows).toHaveLength(0);
+  });
+
+  it("is cleared by an account wipe", async () => {
+    const t = server();
+    const userId = await makeUser(t, "ada@attempts-wipe.test");
+    const me = t.withIdentity({ subject: userId });
+
+    await me.mutation(api.progress.saveAttempts, {
+      attempts: { "web/html": { first: 0.5, best: 1, attempts: 1, at: 1 } },
+    });
+    await me.mutation(api.progress.wipe, {});
+    expect(await me.query(api.progress.getAttempts, {})).toEqual({});
+  });
+});
+
 describe("synced claims can't fake the skill gate", () => {
   it("renders a cloud claim as shipped only when its lessons are done", () => {
     // A claims log pulled straight from the cloud, with no local progress.

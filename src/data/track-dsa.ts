@@ -1,4 +1,5 @@
 import type { Track } from "./types";
+import { debugChallenge } from "./debug-challenges";
 
 export const dsaTrack: Track = {
   id: "dsa",
@@ -375,6 +376,11 @@ function inorder(node, out = []) {
       id: "sorting",
       title: "Sorting: Merge & Quick Sort",
       minutes: 10,
+      // Tier 3 conversion (V2 §9 / §8.4): "implement merge sort from memory"
+      // is a recall exercise. The DebugLab below is the judgment version —
+      // judge a generated sort for worst-case behaviour instead of
+      // reproducing one. The merge/quick concepts stay in the reading.
+      debug: debugChallenge("ai-sort-comparator"),
       body: `Comparison sorting's ceiling is **O(n log n)** — both flagship algorithms hit it, with opposite philosophies.
 
 **Merge sort** — divide, sort halves, **merge**. Stable, predictable O(n log n) *always*, O(n) extra space.

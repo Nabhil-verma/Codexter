@@ -1,18 +1,25 @@
 // @vitest-environment jsdom
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  aggregateAttempts,
   appendAttempt,
+  applyCloudAttempts,
   attemptsFor,
   attemptCount,
   bestScore,
   chanceLadderMean,
   elementCompleted,
   firstScore,
+  loadMergedAggs,
   loadTelemetry,
+  mergeAggregates,
   recordAttempt,
   resetTelemetry,
   reviewGate,
+  reviewGateFromAggs,
   type Attempt,
+  type AttemptAggs,
 } from "../src/lib/telemetry";
 
 /*
@@ -122,5 +129,70 @@ describe("gate statistics", () => {
     expect(chanceLadderMean(5, 101)).toBeCloseTo(0.0814, 4);
     expect(chanceLadderMean(0, 10)).toBe(0);
     expect(chanceLadderMean(5, 0)).toBe(0);
+  });
+});
+
+describe("cloud aggregates", () => {
+  it("summarises the log into first / best / count per lesson", () => {
+    recordAttempt({ key: LESSON, element: "diff", score: 0.4, day: "2026-10-03", at: 10 });
+    recordAttempt({ key: LESSON, element: "diff", score: 1, day: "2026-10-03", at: 20 });
+    recordAttempt({ key: LESSON, element: "quiz", score: 0.5, day: "2026-10-03", at: 30 });
+
+    const aggs = aggregateAttempts(loadTelemetry());
+    expect(aggs[LESSON]).toEqual({ first: 0.4, best: 1, attempts: 3, at: 30 });
+  });
+
+  it("keeps the earliest first attempt when two devices merge", () => {
+    const deviceA: AttemptAggs = { [LESSON]: { first: 0.4, best: 0.7, attempts: 2, at: 100 } };
+    const deviceB: AttemptAggs = { [LESSON]: { first: 1, best: 1, attempts: 1, at: 200 } };
+
+    // B's first attempt happened later, so A's 0.4 is the real first attempt.
+    expect(mergeAggregates(deviceA, deviceB)[LESSON].first).toBe(0.4);
+    expect(mergeAggregates(deviceB, deviceA)[LESSON].first).toBe(0.4);
+    // Best and count take the max either way — commutative.
+    expect(mergeAggregates(deviceA, deviceB)[LESSON].best).toBe(1);
+    expect(mergeAggregates(deviceB, deviceA)[LESSON].best).toBe(1);
+    expect(mergeAggregates(deviceA, deviceB)[LESSON].attempts).toBe(2);
+  });
+
+  it("reads the account's aggregates through the gate helper", () => {
+    applyCloudAttempts({ [LESSON]: { first: 0.4, best: 1, attempts: 3, at: 30 } });
+    const gate = reviewGateFromAggs(loadMergedAggs(), LESSON);
+    expect(gate).toMatchObject({
+      attempts: 3,
+      first: 0.4,
+      best: 1,
+      firstClearedLine: false,
+      firstFullCredit: false,
+    });
+  });
+
+  it("unions the local log with the account rather than replacing it", () => {
+    recordAttempt({ key: LESSON, element: "diff", score: 0.7, day: "2026-10-03", at: 500 });
+    // The account knows about an earlier attempt on another machine.
+    applyCloudAttempts({ [LESSON]: { first: 0.4, best: 0.4, attempts: 1, at: 100 } });
+
+    const gate = reviewGateFromAggs(loadMergedAggs(), LESSON);
+    expect(gate.first).toBe(0.4); // the cloud's earlier attempt wins
+    expect(gate.best).toBe(0.7); // the local log's better score survives
+    // Counts merge by max, not sum: the two sides may be describing the same
+    // attempt, and a sum would inflate on every re-delivery of the same row.
+    expect(gate.attempts).toBe(1);
+
+    // Idempotent: applying the same cloud row twice changes nothing.
+    applyCloudAttempts({ [LESSON]: { first: 0.4, best: 0.4, attempts: 1, at: 100 } });
+    expect(reviewGateFromAggs(loadMergedAggs(), LESSON).attempts).toBe(1);
+  });
+
+  it("survives a malformed cloud payload", () => {
+    localStorage.setItem(
+      "clr-attempts-v1",
+      JSON.stringify({
+        attempts: [],
+        remote: { [LESSON]: { first: "x", best: 1, attempts: 2, at: 1 }, good: { first: 0.4, best: 0.7, attempts: 2, at: 5 } },
+      })
+    );
+    const aggs = loadMergedAggs();
+    expect(Object.keys(aggs)).toEqual(["good"]);
   });
 });

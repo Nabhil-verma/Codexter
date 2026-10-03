@@ -6,6 +6,9 @@ export const performanceTrack: Track = {
   blurb:
     "Core Web Vitals, layout stability, contrast and keyboard semantics — measured, graded, and shipped as one audit-ready page.",
   numeral: "XV",
+  optional: true,
+  optionalWhy:
+    "Four of six lessons are structural preview probes — high value for frontend roles, low signal for generalist screening. Play it when the target job names performance or accessibility.",
   lessons: [
     {
       id: "web-vitals",

@@ -3,14 +3,18 @@ import type { Track } from "./types";
 export const pythonTrack: Track = {
   id: "python",
   title: "Python & Data Fundamentals",
-  blurb: "Python syntax, OOP, and the pandas/numpy data workflow — reading track.",
+  blurb:
+    "Python syntax, OOP and the pandas/numpy workflow — three lessons now execute in the browser (Pyodide).",
   numeral: "Ⅴ",
+  optional: true,
+  optionalWhy:
+    "Three of four lessons now execute (Pyodide, stdlib only) and the fourth is an honest reading. Play it when your target stack is Python; skip it if it isn't.",
   lessons: [
     {
       id: "python-syntax",
       title: "Python Syntax & Core Collections",
       minutes: 10,
-      reading: true,
+      lang: "python",
       body: `Python trades braces for **indentation** — the whitespace *is* the syntax:
 
 \`\`\`
@@ -41,6 +45,7 @@ pairs   = [(x, y) for x in "ab" for y in (1, 2)]
 
 **Generators** yield values lazily — constant memory over huge streams:
 
+\`\`\`
 def countdown(n):
     while n > 0:
         yield n
@@ -51,14 +56,43 @@ total = sum(countdown(1_000_000))   # never materializes the list
 
 **f-strings** format anything: \`f"{user['name']} is {user['age']:>3} years old"\`.
 
+**The trap this exercise plants:** a mutable default argument. \`def f(items=[])\`
+evaluates that \`[]\` **once, when the function is defined**, so every call that
+omits the argument shares the same list. It is the single most common Python
+bug that passes review, and it is silent.
+
 Rule of thumb: list for order, tuple for fixed shapes, set for membership, dict for lookups.`,
+      starter: `def add_tag(tag, tags=[]):
+    # TODO: the default list is created ONCE — every call shares it.
+    tags.append(tag)
+    return tags
+
+print("first:", add_tag("py"))
+print("second:", add_tag("data"))
+print("defaults independent:", add_tag("x") == ["x"])`,
+      check: {
+        expr: "output.includes(\"second: ['data']\") && output.includes('defaults independent: True')",
+        hint: "Never use a mutable default. Take `tags=None` and create the list inside the function — then each call that omits the argument gets its own.",
+        hints: [
+          {
+            tier: 1,
+            text: "Run it and read the three lines. Two of them disagree with what a *fresh* call should produce — which call is carrying state it should not have?",
+          },
+          {
+            tier: 2,
+            text: "The `[]` in the signature is evaluated once, when Python defines the function — not on each call. So `tags` is one shared object, and `first`/`second` are appending to the same list.",
+          },
+          {
+            tier: 3,
+            text: "Signature becomes `def add_tag(tag, tags=None):` and the first line of the body is `if tags is None: tags = []`. A caller passing their own list still works.",
+          },
+        ],
+      },
       predict: [
         {
           prompt: "What does this Python print?",
           lang: "python",
-          code: `nums = [1, 2, 3, 4]
-result = [n * 2 for n in nums if n % 2 == 0]
-print(result)`,
+          code: `nums = [1, 2, 3, 4]\nresult = [n * 2 for n in nums if n % 2 == 0]\nprint(result)`,
           options: ["[2, 4, 6, 8]", "[4, 8]", "[2, 4]", "[4, 8, 12, 16]"],
           answer: 1,
           explanation:
@@ -67,12 +101,7 @@ print(result)`,
         {
           prompt: "And this one?",
           lang: "python",
-          code: `def add_item(item, items=[]):
-    items.append(item)
-    return items
-
-print(add_item(1))
-print(add_item(2))`,
+          code: `def add_item(item, items=[]):\n    items.append(item)\n    return items\n\nprint(add_item(1))\nprint(add_item(2))`,
           options: [
             "[1] then [2] — a fresh list each call",
             "[1] then [1, 2] — the default list is created ONCE at function definition",
@@ -86,10 +115,28 @@ print(add_item(2))`,
       ],
       quiz: [
         {
-          q: "Which collection is immutable?",
-          options: ["list", "tuple", "dict", "set"],
+          q: "A generated function reads `def load(path, cache={}):`. What should you flag?",
+          options: [
+            "Nothing — defaults make the cache optional",
+            "The mutable default is shared across every call, so entries leak between callers",
+            "`{}` is slower than `dict()`",
+            "The parameter should be keyword-only",
+          ],
           answer: 1,
-          explanation: "Tuples can't be modified after creation — good for fixed records.",
+          explanation:
+            "Same bug as the exercise: the default is created once at definition time, so the cache is global state wearing a parameter's clothes. Use `cache=None`.",
+        },
+        {
+          q: "AI-written code does `if user['role'] is 'admin':`. Why is that wrong?",
+          options: [
+            "It is slower than ==",
+            "`is` compares identity, not value — it works by accident for interned strings and fails for computed ones",
+            "It always raises a SyntaxError",
+            "It is fine in Python 3",
+          ],
+          answer: 1,
+          explanation:
+            "`is` asks 'the same object?', `==` asks 'the same value?'. Interned literals hide the difference until a role arrives from a database or an f-string.",
         },
         {
           q: "[n*n for n in range(4)] evaluates to…",
@@ -98,23 +145,28 @@ print(add_item(2))`,
           explanation: "range(4) is 0..3; each is squared.",
         },
         {
-          q: "A generator function uses…",
-          options: ["return", "yield", "pass", "raise"],
+          q: "An agent writes `def load(path, cache={}):`. What do you ask it to change?",
+          options: [
+            "Nothing — the cache is optional by design",
+            "The mutable default: it is created once at definition time, so every caller shares one cache",
+            "The parameter name",
+            "Add a type hint",
+          ],
           answer: 1,
           explanation:
-            "yield pauses and hands back one value at a time — lazy evaluation.",
+            "The default is evaluated once, when the function is defined — so the 'optional' cache is really process-global state. The fix is `cache=None` and create inside.",
         },
         {
-          q: "nums[::-1] returns…",
-          options: ["The first element", "A reversed copy", "An error", "Every 2nd element"],
+          q: "Generated code does `if items == []` to test for an empty list. Why flag it?",
+          options: [
+            "It is slower than `is`",
+            "It works, but `if not items` is the idiomatic form — and `== []` breaks for any other empty sequence (a tuple, a generator's result)",
+            "It raises a TypeError",
+            "It mutates the list",
+          ],
           answer: 1,
-          explanation: "Step -1 walks the sequence backwards.",
-        },
-        {
-          q: "Constant memory while summing a huge series suggests…",
-          options: ["A list comprehension", "A generator", "A tuple", "A set"],
-          answer: 1,
-          explanation: "Generators stream values instead of materializing them.",
+          explanation:
+            "Truthiness asks 'is it empty?'; equality asks 'is it exactly this list?'. The second question is narrower than the one the code means to ask.",
         },
       ],
     },
@@ -122,6 +174,7 @@ print(add_item(2))`,
       id: "python-oop",
       title: "OOP: Classes, Inheritance & Exceptions",
       minutes: 10,
+      lang: "python",
       sort: {
         prompt: "Arrange the exception-handling block so it runs correctly.",
         items: [
@@ -135,9 +188,9 @@ print(add_item(2))`,
         explanation:
           "try holds the risky line, except catches the specific failure it can handle, and finally always runs — even when the call returned or raised.",
       },
-      reading: true,
       body: `Classes bundle **data + behavior**:
 
+\`\`\`
 class BankAccount:
     def __init__(self, owner, balance=0):
         self.owner = owner          # public attribute
@@ -156,6 +209,7 @@ class BankAccount:
 
 **Inheritance** — subclass, extend, override; \`super()\` calls up:
 
+\`\`\`
 class SavingsAccount(BankAccount):
     def __init__(self, owner, balance=0, rate=0.02):
         super().__init__(owner, balance)
@@ -169,6 +223,7 @@ class SavingsAccount(BankAccount):
 
 **Exception handling** — catch *specific*, handle *meaningfully*:
 
+\`\`\`
 try:
     risky()
 except ValueError as err:
@@ -183,9 +238,50 @@ finally:
 
 Never bare-\`except:\` (it swallows your own bugs). For cleanup, prefer context managers:
 
+\`\`\`
 with open("data.csv") as f:    # closes even on exception
     rows = f.readlines()
-\`\`\``,
+\`\`\`
+
+**Why the bare \`except\` matters in an AI-written diff:** a handler that catches
+everything converts a crash into a plausible wrong value. The crash was
+information; the silent \`None\` is a bug that ships.`,
+      starter: `class MissingFieldError(Exception):
+    pass
+
+def parse_age(record):
+    if "age" not in record:
+        raise MissingFieldError("age")
+    return int(record["age"])
+
+def read_age(record):
+    # TODO: a bare except catches everything — including bugs you want to see.
+    try:
+        return ("ok", parse_age(record))
+    except:
+        return ("failed", None)
+
+print("valid:", read_age({"age": "36"}))
+print("bad value:", read_age({"age": "thirty"}))
+print("missing field:", read_age({}))`,
+      check: {
+        expr: "output.includes(\"('ok', 36)\") && output.includes(\"('invalid', None)\") && output.includes(\"('missing', None)\")",
+        hint: "Handle each failure it can actually handle: `except ValueError` for a value it cannot parse, `except MissingFieldError` for an absent field. Let anything else keep propagating.",
+        hints: [
+          {
+            tier: 1,
+            text: "Run it. All three rows report the same status — but they are three different situations. Which distinction is the code losing?",
+          },
+          {
+            tier: 2,
+            text: "`except:` catches every exception, including `TypeError`s from your own bugs. Catch the two named failures separately so each can be reported honestly.",
+          },
+          {
+            tier: 3,
+            text: "Two handlers: `except ValueError: return ('invalid', None)` and `except MissingFieldError: return ('missing', None)`. No bare except.",
+          },
+        ],
+      },
       quiz: [
         {
           q: "__init__ runs when…",
@@ -216,15 +312,16 @@ with open("data.csv") as f:    # closes even on exception
           explanation: "balance instead of balance() — getter syntax with method logic.",
         },
         {
-          q: "Why avoid bare except:?",
+          q: "An agent's handler reads `except Exception: pass`. What do you ask for?",
           options: [
-            "It's slow",
-            "It catches everything — including your own bugs and KeyboardInterrupt",
-            "It only works in Python 2",
-            "It skips finally",
+            "Nothing — it is defensive",
+            "Catch the specific exception, and at minimum log it — `pass` hides real failures",
+            "Add a bare `except:` for symmetry",
+            "Wrap it in another try",
           ],
           answer: 1,
-          explanation: "Catch specific exceptions so real errors still surface.",
+          explanation:
+            "Silently swallowing every exception turns crashes into wrong values. Name the failure you can handle; let the rest surface.",
         },
         {
           q: "The 'with open(...)' pattern guarantees…",
@@ -281,7 +378,12 @@ summary = (df.groupby("region")
 
 **Merging** = SQL joins: \`pd.merge(orders, customers, on="customer_id", how="left")\`.
 
-Workflow rule: profile first (\`info\`/\`describe\`), clean second, analyze third — and keep a random \`df.sample(5)\` eyeball-check in the loop. Garbage in, confident nonsense out.`,
+Workflow rule: profile first (\`info\`/\`describe\`), clean second, analyze third — and keep a random \`df.sample(5)\` eyeball-check in the loop. Garbage in, confident nonsense out.
+
+**Honest limit:** this lesson is a reading. numpy and pandas are not shipped
+with the in-browser Python runtime (their wheels would add tens of megabytes to
+a 13 MB download), so nothing here is executed. The three other Python lessons
+run for real.`,
       quiz: [
         {
           q: "Vectorization means…",
@@ -336,97 +438,163 @@ Workflow rule: profile first (\`info\`/\`describe\`), clean second, analyze thir
       ],
     },
     {
-      id: "matplotlib-ml",
-      title: "Visualize & Predict: Matplotlib → ML Basics",
-      minutes: 12,
-      reading: true,
-      body: `**Visualization** is analysis's proof layer — you spot patterns before you compute them.
+      id: "python-llm-api",
+      title: "Calling LLM APIs from Python",
+      minutes: 14,
+      lang: "python",
+      pythonPrelude: `import sys, types
+mod = types.ModuleType("client")
 
-import matplotlib.pyplot as plt
+class RateLimitError(Exception):
+    """429 — retryable, but only a bounded number of times."""
+    pass
 
-fig, ax = plt.subplots(figsize=(8, 4))
-ax.hist(df["revenue"], bins=30)          # distribution
-ax.scatter(df["qty"], df["revenue"], alpha=0.4)  # relationship
-ax.plot(dates, rolling_avg)              # trend
-ax.set(title="Revenue by day", xlabel="date", ylabel="$")
-plt.tight_layout()
-\`\`\`
+class BadRequestError(Exception):
+    """400 — the request itself is wrong. Retrying makes it worse."""
+    pass
 
-Chart-choice cheat sheet: **histogram** = distribution · **scatter** = relationship · **line** = time trend · **bar** = category comparison · **heatmap** = matrix.
+_state = {"calls": 0}
 
-**The ML entry point** — scikit-learn's one API to rule them all:
+def call_model(prompt):
+    _state["calls"] += 1
+    if _state["calls"] <= 2:
+        raise RateLimitError("429 rate limited")
+    return {"text": [{"content": "Refunds are processed in 5 business days."}]}
 
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error
+def validate(payload):
+    raise BadRequestError("400 malformed request")
 
-X = df[["qty", "unit_price"]]      # features
-y = df["revenue"]                  # target
+mod.RateLimitError = RateLimitError
+mod.BadRequestError = BadRequestError
+mod.call_model = call_model
+mod.validate = validate
+sys.modules["client"] = mod
+`,
+      body: `The fixture module \`client\` stands in for a real provider SDK: its
+\`call_model()\` raises \`RateLimitError\` on the first two calls of every run and
+succeeds on the third, so retry behaviour is **deterministic** — no network, no
+flakiness. This is the same trade the API track makes with its mock REST server.
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42)
+**The four failure modes of a hand-written Python LLM client:**
 
-model = LinearRegression().fit(X_train, y_train)
-preds = model.predict(X_test)
-print("MAE:", mean_absolute_error(y_test, preds))
-print("qty effect: +$", model.coef_[0], "per unit")
-\`\`\`
+1. **No retry at all.** The first 429 becomes a traceback. Rate limits are the
+   *normal* operating condition of a hosted model.
+2. **Retrying the wrong thing.** A 400 means the request is malformed — five
+   attempts are five identical failures, plus load on a service that already
+   told you no. Retry only what is retryable.
+3. **No timeout.** A client with no timeout waits forever; one long request
+   becomes a hung worker. (The JS track calls the same mistake the unawaited
+   value.)
+4. **Logging the credential.** \`print(api_key)\` or an error string that
+   interpolates the header puts a live key in your logs — which is the security
+   track's leak, arriving through a debugging shortcut.
 
-**The iron rules:**
-1. **Split before anything** — test data must simulate the future, so the model never sees it during fitting (or scaling!).
-2. **A baseline first** (predict the mean) — beat it or the model is worthless.
-3. **Error metric matches the business**: MAE = average miss in real units; RMSE punishes big misses.
-4. Overfitting signal: train error ≪ test error. Fix with more data, fewer features, or regularization.`,
+**The retry shape worth memorising:** bounded attempts, retry only the
+retryable error, and say what you handled. Silence is how a retry loop hides a
+permanent failure.`,
+      starter: `from client import call_model, RateLimitError, BadRequestError, validate
+
+def ask(prompt):
+    # TODO: this crashes on the first 429 — no retry, no bound.
+    return call_model(prompt)["text"][0]["content"]
+
+print("answer:", ask("summarise: refund policy"))
+print("retries:", 0)
+
+# A 400 must never be retried — fail fast instead.
+try:
+    validate({"prompt": ""})
+except BadRequestError:
+    print("400 -> raised, not retried")`,
+      check: {
+        expr: "output.includes('answer: Refunds are processed in 5 business days.') && output.includes('retries: 2') && output.includes('handled: RateLimitError') && output.includes('400 -> raised, not retried')",
+        hint: "Retry only RateLimitError, cap the attempts, and print a line each time you handle one. Let every other exception keep propagating — including BadRequestError.",
+        hints: [
+          {
+            tier: 1,
+            text: "Run it and read the traceback. The fixture is telling you exactly what went wrong and when — the client just does not listen.",
+          },
+          {
+            tier: 2,
+            text: "You need a loop with a bounded attempt count, and the `except` clause must name only `RateLimitError`. Retrying `BadRequestError` would produce five identical failures.",
+          },
+          {
+            tier: 3,
+            text: "Wrap the call in `try/except RateLimitError`, count attempts, print `handled: RateLimitError` in the handler, and re-raise once the count reaches your maximum. Return `(text, attempts)` so the caller can print both.",
+          },
+        ],
+      },
+      predict: [
+        {
+          prompt: "Which line of this generated client leaks a credential?",
+          lang: "python",
+          code: `import requests\n\ndef chat(prompt, api_key):\n    try:\n        r = requests.post(\n            URL,\n            headers={"Authorization": f"Bearer {api_key}"},\n            json={"prompt": prompt},\n        )\n        return r.json()["choices"][0]["text"]\n    except Exception as err:\n        print(f"request failed with key {api_key}: {err}")\n        return ""`,
+          options: [
+            "The f-string in the header",
+            "The `except Exception` handler, which both swallows every failure and prints the key",
+            "`r.json()[\"choices\"][0][\"text\"]`",
+            "Nothing — it is a normal client",
+          ],
+          answer: 1,
+          explanation:
+            "Two defects in one line: `except Exception` hides real errors, and interpolating `api_key` writes a live credential into whatever collects stdout — CI logs, a container, an error tracker.",
+        },
+      ],
       quiz: [
         {
-          q: "Best chart for a variable's distribution?",
-          options: ["Line", "Histogram", "Bar", "Pie"],
-          answer: 1,
-          explanation: "Histograms bin values to reveal shape, center, and outliers.",
-        },
-        {
-          q: "Why split before fitting?",
+          q: "A 429 arrives. The correct response is…",
           options: [
-            "To save memory",
-            "The test set must simulate unseen data — leaking it inflates scores",
-            "sklearn requires two files",
-            "For faster training",
+            "Fail the request — the user can retry",
+            "Retry with backoff, bounded by an attempt cap",
+            "Retry immediately in a tight loop",
+            "Drop the request silently",
           ],
           answer: 1,
-          explanation: "Post-split evaluation is the only honest performance estimate.",
+          explanation:
+            "Rate limits are normal. Backoff plus a bound: immediate retries turn a blip into a self-inflicted denial of service.",
         },
         {
-          q: "model.coef_ tells you…",
-          options: [
-            "The prediction error",
-            "Each feature's learned effect on the target",
-            "The learning rate",
-            "Number of rows",
-          ],
-          answer: 1,
-          explanation: "Linear coefficients = effect per unit of the feature, holding others fixed.",
+          q: "Which error should never be retried?",
+          options: ["429 rate limit", "503 unavailable", "400 bad request", "Connection reset"],
+          answer: 2,
+          explanation:
+            "A malformed request fails identically every time — retrying multiplies the mistake and the load.",
         },
         {
-          q: "Train error 2%, test error 30% means…",
+          q: "Why does a missing timeout matter more in production than locally?",
           options: [
-            "A great model",
-            "Overfitting — memorized training data",
-            "Underfitting",
-            "Data leakage downward",
+            "It does not",
+            "A hung request holds a worker until the platform kills it, so one slow dependency becomes an outage",
+            "Timeouts only affect billing",
+            "Python has no timeouts",
           ],
           answer: 1,
-          explanation: "The generalization gap is the overfitting signature.",
+          explanation:
+            "Every request that never returns occupies capacity. Timeouts are how a slow dependency stays a slow dependency instead of an outage.",
         },
         {
-          q: "MAE is preferred over RMSE when…",
+          q: "The retry loop prints nothing when it handles an error. What is the risk?",
           options: [
-            "Big outliers should dominate",
-            "You want 'average miss' in real units, robust to outliers",
-            "Data is categorical",
-            "There is no target",
+            "None — quieter logs are better",
+            "A permanent failure looks identical to a slow success, so the incident is invisible",
+            "Printing costs latency",
+            "The error is retried twice",
           ],
           answer: 1,
-          explanation: "MAE is interpretable and outlier-robust; RMSE amplifies large errors.",
+          explanation:
+            "Handled-and-recovered is worth one line. Without it you cannot tell a retry that worked from a retry that is still happening.",
+        },
+        {
+          q: "The fixture makes `call_model` fail exactly twice per run. Why is that deliberate?",
+          options: [
+            "To make the exercise harder",
+            "So retry behaviour is graded deterministically — the same code always produces the same result",
+            "Because real APIs fail twice",
+            "To test memory",
+          ],
+          answer: 1,
+          explanation:
+            "Grading has to be reproducible. A live provider would make the same exercise pass or fail on network luck.",
         },
       ],
     },

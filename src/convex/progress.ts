@@ -14,7 +14,22 @@ type Claims = Record<string, Claim>;
  */
 const MAX_PROGRESS_ENTRIES = 2_000;
 const MAX_CLAIMS = 64;
+const MAX_ATTEMPTS = 2_000;
 const MAX_KEY_LENGTH = 120;
+
+/**
+ * One lesson's aggregated attempt record. The client owns the first-attempt
+ * score (it is the only side that sees attempts in order); the server's job is
+ * to keep the *earliest* first, the *highest* best and the *largest* count, so
+ * a second device can only ever add information — never rewind it.
+ */
+type AttemptAgg = {
+  first: number;
+  best: number;
+  attempts: number;
+  at: number;
+};
+type Attempts = Record<string, AttemptAgg>;
 
 /**
  * Claims, validated the way `sanitize` validates scores: a malformed client
@@ -65,6 +80,60 @@ function mergeClaims(a: Claims, b: Claims): Claims {
     ) {
       out[id] = claim;
     }
+  }
+  return out;
+}
+
+/**
+ * Attempts arrive as `v.any()`, so they get the same treatment as scores: a
+ * malformed entry is dropped, values are clamped to 0..1, counts are coerced
+ * to non-negative integers, and the whole map is capped.
+ */
+function sanitizeAttempts(raw: unknown): Attempts {
+  const out: Attempts = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (Object.keys(out).length >= MAX_ATTEMPTS) break;
+    if (key.length === 0 || key.length > MAX_KEY_LENGTH) continue;
+    if (!value || typeof value !== "object") continue;
+    const { first, best, attempts, at } = value as Record<string, unknown>;
+    const f = typeof first === "number" ? first : Number(first);
+    const b = typeof best === "number" ? best : Number(best);
+    const n = typeof attempts === "number" ? attempts : Number(attempts);
+    const t = typeof at === "number" ? at : Number(at);
+    if (!Number.isFinite(f) || !Number.isFinite(b)) continue;
+    if (!Number.isFinite(n) || n < 1) continue;
+    out[key] = {
+      first: Math.min(1, Math.max(0, f)),
+      best: Math.min(1, Math.max(0, b)),
+      attempts: Math.min(100_000, Math.floor(n)),
+      at: Number.isFinite(t) ? t : 0,
+    };
+  }
+  return out;
+}
+
+/**
+ * Union of two attempt maps. `first` keeps the value from the record with the
+ * earlier `at` (the genuinely first attempt wins, whichever device saw it),
+ * `best` takes the max, `attempts` the max, `at` the max. Commutative and
+ * idempotent in both copies, exactly like the score and claim merges.
+ */
+function mergeAttempts(a: Attempts, b: Attempts): Attempts {
+  const out: Attempts = { ...a };
+  for (const [key, next] of Object.entries(b)) {
+    const mine = out[key];
+    if (!mine) {
+      out[key] = next;
+      continue;
+    }
+    const firstWins = next.at < mine.at ? next.first : mine.first;
+    out[key] = {
+      first: firstWins,
+      best: Math.max(mine.best, next.best),
+      attempts: Math.max(mine.attempts, next.attempts),
+      at: Math.max(mine.at, next.at),
+    };
   }
   return out;
 }
@@ -178,6 +247,55 @@ export const saveClaims = mutation({
         userId,
         data: {},
         claims: incoming,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+/**
+ * Load the signed-in user's attempt aggregates, or null when signed out.
+ * Kept beside `get`/`getClaims` so each map keeps its own merge rule.
+ */
+export const getAttempts = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+    const row = await ctx.db
+      .query("progress")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    return sanitizeAttempts(row?.attempts);
+  },
+});
+
+/**
+ * Upsert attempt aggregates, merged with whatever is stored so a second
+ * device's history is folded in rather than overwritten.
+ */
+export const saveAttempts = mutation({
+  args: { attempts: v.any() },
+  handler: async (ctx, { attempts }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return;
+    const incoming = sanitizeAttempts(attempts);
+    if (Object.keys(incoming).length === 0) return;
+    const row = await ctx.db
+      .query("progress")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (row) {
+      await ctx.db.patch(row._id, {
+        attempts: mergeAttempts(sanitizeAttempts(row.attempts), incoming),
+        updatedAt: Date.now(),
+      });
+    } else {
+      // Attempts can land before any score or claim has synced.
+      await ctx.db.insert("progress", {
+        userId,
+        data: {},
+        attempts: incoming,
         updatedAt: Date.now(),
       });
     }

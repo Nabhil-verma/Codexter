@@ -40,12 +40,48 @@ export type Attempt = {
   at: number;
 };
 
-export type Telemetry = { attempts: Attempt[] };
+export type Telemetry = {
+  attempts: Attempt[];
+  /**
+   * Attempt aggregates pulled from the account (a second device's history).
+   * Kept beside the raw log, never merged into it: the raw log is this
+   * device's evidence, the remote map is the union the gates read.
+   */
+  remote?: AttemptAggs;
+};
 
 /** Bounded so one learner's log cannot grow without limit. */
 export const MAX_ATTEMPTS = 2000;
 
 export const EMPTY_TELEMETRY: Telemetry = { attempts: [] };
+
+export type AttemptAgg = {
+  first: number;
+  best: number;
+  attempts: number;
+  at: number;
+};
+export type AttemptAggs = Record<string, AttemptAgg>;
+
+function sanitizeAggs(raw: unknown): AttemptAggs | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: AttemptAggs = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!value || typeof value !== "object") continue;
+    const { first, best, attempts, at } = value as Record<string, unknown>;
+    const f = typeof first === "number" ? first : Number(first);
+    const b = typeof best === "number" ? best : Number(best);
+    const n = typeof attempts === "number" ? attempts : Number(attempts);
+    if (!Number.isFinite(f) || !Number.isFinite(b) || !Number.isFinite(n) || n < 1) continue;
+    out[key] = {
+      first: Math.min(1, Math.max(0, f)),
+      best: Math.min(1, Math.max(0, b)),
+      attempts: Math.floor(n),
+      at: Number.isFinite(at) ? Number(at) : 0,
+    };
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 const ELEMENTS: AttemptElement[] = ["quiz", "debug", "diff", "repo", "rubric"];
 
@@ -75,6 +111,7 @@ function parseTelemetry(raw: string | null): Telemetry {
         attempts: stored.attempts
           .map(sanitizeAttempt)
           .filter((a): a is Attempt => a !== null),
+        remote: sanitizeAggs(stored.remote),
       };
     }
   } catch {
@@ -99,7 +136,7 @@ export function appendAttempt(
   attempt: Attempt,
   cap: number = MAX_ATTEMPTS
 ): Telemetry {
-  return { attempts: [...t.attempts, attempt].slice(-cap) };
+  return { ...t, attempts: [...t.attempts, attempt].slice(-cap) };
 }
 
 /**
@@ -126,6 +163,111 @@ export function recordAttempt(input: {
 
 export function resetTelemetry() {
   store.reset();
+}
+
+/* ------------------------- Cloud sync ------------------------- */
+
+/**
+ * The shape that crosses the network: one aggregate per lesson, not the raw
+ * log. The gates need first / best / count, and a bounded row beats a growing
+ * one — `at` is what lets the server tell which device saw the first attempt.
+ */
+export function aggregateAttempts(t: Telemetry): AttemptAggs {
+  const out: AttemptAggs = {};
+  for (const a of t.attempts) {
+    const cur = out[a.key];
+    if (!cur) {
+      out[a.key] = { first: a.score, best: a.score, attempts: 1, at: a.at };
+      continue;
+    }
+    const isEarlier = a.at < cur.at;
+    out[a.key] = {
+      first: isEarlier ? a.score : cur.first,
+      best: Math.max(cur.best, a.score),
+      attempts: cur.attempts + 1,
+      at: Math.max(cur.at, a.at),
+    };
+  }
+  return out;
+}
+
+/**
+ * Merge a cloud aggregate map into the local log's view. Used on sign-in and
+ * on every pull: the server may know about attempts this device never saw
+ * (a second machine), so the UI reads the union while the raw log stays local.
+ */
+export function mergeAggregates(
+  local: AttemptAggs,
+  remote: AttemptAggs
+): AttemptAggs {
+  const out: AttemptAggs = { ...local };
+  for (const [key, next] of Object.entries(remote)) {
+    const mine = out[key];
+    if (!mine) {
+      out[key] = next;
+      continue;
+    }
+    out[key] = {
+      first: next.at < mine.at ? next.first : mine.first,
+      best: Math.max(mine.best, next.best),
+      attempts: Math.max(mine.attempts, next.attempts),
+      at: Math.max(mine.at, next.at),
+    };
+  }
+  return out;
+}
+
+/**
+ * Record the account's aggregates on this device (sign-in and every pull).
+ * Merged, never overwritten: this device may hold attempts the account has
+ * not seen yet, and the union is what the gates should read.
+ */
+export function applyCloudAttempts(remote: AttemptAggs): Telemetry {
+  const local = loadTelemetry();
+  const merged = mergeAggregates(local.remote ?? {}, remote);
+  const next: Telemetry = { ...local, remote: merged };
+  store.set(next);
+  return next;
+}
+
+/**
+ * What the gate readouts should read: this device's log plus the account's
+ * aggregates. Falls back to the local log alone when signed out.
+ */
+export function loadMergedAggs(): AttemptAggs {
+  const t = loadTelemetry();
+  const local = aggregateAttempts(t);
+  return t.remote ? mergeAggregates(local, t.remote) : local;
+}
+
+/** Gate A's statistics over an aggregate map (works for local or merged). */
+export function reviewGateFromAggs(
+  aggs: AttemptAggs,
+  key: string
+): {
+  attempts: number;
+  first: number | null;
+  best: number;
+  firstClearedLine: boolean;
+  firstFullCredit: boolean;
+} {
+  const agg = aggs[key];
+  if (!agg) {
+    return {
+      attempts: 0,
+      first: null,
+      best: 0,
+      firstClearedLine: false,
+      firstFullCredit: false,
+    };
+  }
+  return {
+    attempts: agg.attempts,
+    first: agg.first,
+    best: agg.best,
+    firstClearedLine: agg.first >= 0.7,
+    firstFullCredit: agg.first >= 1,
+  };
 }
 
 /* ------------------------- Aggregates ------------------------- */

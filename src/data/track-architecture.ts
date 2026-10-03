@@ -5,6 +5,9 @@ export const architectureTrack: Track = {
   title: "System Design & Architecture",
   blurb: "Scale, cache, shard, and queue — the trade-off thinking behind big systems.",
   numeral: "Ⅹ",
+  optional: true,
+  optionalWhy:
+    "System-design vocabulary rather than daily work. High value for interviews that ask design questions; a reading-heavy track otherwise.",
   lessons: [
     {
       id: "monolith-vs-microservices",

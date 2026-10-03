@@ -209,9 +209,21 @@ export type Lesson = {
   minutes: number;
   /** Reading lessons have no runnable exercise — body + quiz only */
   reading?: boolean;
-  /** Run this exercise through the real TypeScript compiler: type-check,
-   * strip types, then execute in the shared JS sandbox. */
-  lang?: "ts";
+  /**
+   * Which runtime grades the `starter`:
+   * - `ts` — the real TypeScript compiler type-checks, then the shared JS
+   *   sandbox executes.
+   * - `python` — Pyodide executes it in a worker (stdlib only, terminated on
+   *   a runaway loop) and the same output-check grammar grades it.
+   * Absent → the plain JS sandbox.
+   */
+  lang?: "ts" | "python";
+  /**
+   * Python source installed before the learner's code, in the same fresh
+   * namespace — the fixture mechanism for deterministic exercises (a client
+   * whose first calls raise, a data module, and so on). Python only.
+   */
+  pythonPrelude?: string;
   /** Break-and-fix lab — graded by running the repaired program */
   debug?: DebugChallenge;
   /** Live-rendering sandbox for markup, layout and styling lessons */
@@ -243,5 +255,13 @@ export type Track = {
   blurb: string;
   /** Roman numeral shown in the premium design instead of an emoji */
   numeral: string;
+  /**
+   * Framework-specific or low-priority-for-screening material (Tier 2).
+   * Optional tracks stay fully playable and still count for XP and
+   * certificates; the Learn catalog just splits them out of the core path.
+   */
+  optional?: boolean;
+  /** One line on why this track is optional, shown on the catalog card. */
+  optionalWhy?: string;
   lessons: Lesson[];
 };

@@ -16,6 +16,7 @@ import { apiTrack } from "./track-api";
 import { typescriptTrack } from "./track-typescript";
 import { performanceTrack } from "./track-performance";
 import { agentsTrack } from "./track-agents";
+import { workflowTrack } from "./track-workflow";
 
 export type { Track, Lesson } from "./types";
 export type { Check, QuizQuestion } from "./types";
@@ -28,8 +29,9 @@ export type { Check, QuizQuestion } from "./types";
  * fails if a code loses its exercise or a wired id stops resolving.
  */
 const TAXONOMY_WIRING: Record<string, string> = {
-  "web/es6-syntax": "off-by-one",
+  "web/es6-syntax": "semantics-refactor",
   "dsa/big-o": "quadratic-dedupe",
+  "dsa/sorting": "ai-sort-comparator",
   "react/hooks-effect": "invented-helpers",
   "backend/api-security": "trusted-role-header",
 };
@@ -62,6 +64,7 @@ export const tracks: Track[] = [
   typescriptTrack,
   performanceTrack,
   agentsTrack,
+  workflowTrack,
 ].map(wireTaxonomy);
 
 export function findTrack(trackId: string) {

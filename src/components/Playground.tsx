@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { runUserCode, evaluateCheck, type RunResult } from "../lib/runner";
 // Type-only: erased at compile time, so the TS compiler chunk stays lazy.
 import type { TsDiagnostic } from "../lib/tsRunner";
@@ -11,15 +11,31 @@ type Props = {
   starter: string;
   check?: Check;
   onPass?: () => void;
+  /**
+   * Python source installed before the learner's code, in the same fresh
+   * namespace — used for deterministic fixtures (e.g. a `client` module whose
+   * first two calls raise, so retry lessons are reproducible).
+   */
+  pythonPrelude?: string;
   /** Fires on every code edit — used by the free playground to persist */
   onCodeChange?: (code: string) => void;
-  /** TypeScript lessons type-check through the real compiler before running */
-  lang?: "ts";
+  /**
+   * Which runtime grades this exercise. `ts` type-checks through the real
+   * compiler before running; `python` executes in a Pyodide worker.
+   */
+  lang?: "ts" | "python";
 };
 
 type Outcome = RunResult & { typeErrors?: TsDiagnostic[] };
 
-export default function Playground({ starter, check, onPass, onCodeChange, lang }: Props) {
+export default function Playground({
+  starter,
+  check,
+  onPass,
+  onCodeChange,
+  lang,
+  pythonPrelude,
+}: Props) {
   const [code, setCode] = useState(starter);
   const [result, setResult] = useState<Outcome | null>(null);
   const [running, setRunning] = useState(false);
@@ -27,6 +43,17 @@ export default function Playground({ starter, check, onPass, onCodeChange, lang 
   const [attempts, setAttempts] = useState(0);
   const [showTrace, setShowTrace] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  /*
+   * Pyodide's first load is ~10–14 MB, so it starts when the exercise mounts
+   * rather than when the learner presses Run — otherwise the first click
+   * looks like a hang. The chunk stays out of the app bundle entirely: the
+   * import is dynamic, so JavaScript lessons never download it.
+   */
+  useEffect(() => {
+    if (lang !== "python") return;
+    void import("../lib/pythonRunner").then((m) => m.preloadPython());
+  }, [lang]);
 
   const update = (next: string) => {
     setCode(next);
@@ -38,7 +65,11 @@ export default function Playground({ starter, check, onPass, onCodeChange, lang 
     const r: Outcome =
       lang === "ts"
         ? await (await import("../lib/tsRunner")).runTs(code)
-        : await runUserCode(code);
+        : lang === "python"
+          ? await (await import("../lib/pythonRunner")).runPython(code, {
+              prelude: pythonPrelude,
+            })
+          : await runUserCode(code);
     setResult(r);
     if (check) {
       const ok =
@@ -91,7 +122,11 @@ export default function Playground({ starter, check, onPass, onCodeChange, lang 
             <span className="h-2.5 w-2.5 rounded-full bg-ink-700" />
             <span className="h-2.5 w-2.5 rounded-full bg-gold-400" />
             <span className="ml-2 font-mono text-xs text-ink-600">
-              {lang === "ts" ? "editor.ts" : "editor.js"}
+              {lang === "ts"
+                ? "editor.ts"
+                : lang === "python"
+                  ? "editor.py"
+                  : "editor.js"}
             </span>
           </div>
           <div className="flex gap-2">
@@ -120,12 +155,23 @@ export default function Playground({ starter, check, onPass, onCodeChange, lang 
           rows={Math.max(8, Math.min(24, code.split("\n").length + 1))}
           className="block w-full resize-y bg-ink-950 p-5 font-mono text-[13px] leading-relaxed text-paper-100 outline-none placeholder:text-ink-600"
           placeholder={
-            lang === "ts" ? "Write some TypeScript…" : "Write some JavaScript…"
+            lang === "ts"
+              ? "Write some TypeScript…"
+              : lang === "python"
+                ? "Write some Python…"
+                : "Write some JavaScript…"
           }
         />
       </div>
 
       {/* Type errors get an editor-style problems panel of their own */}
+      {lang === "python" && (
+        <p className="-mt-2 font-mono text-[11px] text-ink-500">
+          Python runs in a worker (Pyodide) — stdlib only, and a runaway loop is
+          terminated, not hung.
+        </p>
+      )}
+
       {result?.typeErrors && result.typeErrors.length > 0 && (
         <div className="code-window shadow-lift border border-red-400/40">
           <div className="border-b border-ink-800 px-4 py-2.5 font-mono text-xs text-red-400">
@@ -158,7 +204,11 @@ export default function Playground({ starter, check, onPass, onCodeChange, lang 
             <div className="mt-2 whitespace-pre-wrap text-red-400">✗ {result.error}</div>
           )}
           {result && !result.error && result.logs.length === 0 && (
-            <p className="text-ink-600">(no output — did you call console.log?)</p>
+            <p className="text-ink-600">
+              {lang === "python"
+                ? "(no output — did you call print()?)"
+                : "(no output — did you call console.log?)"}
+            </p>
           )}
         </div>
       </div>
@@ -194,8 +244,8 @@ export default function Playground({ starter, check, onPass, onCodeChange, lang 
       )}
 
       {/* Visual execution toggle — the stepper instruments plain JS, so
-          TypeScript lessons rely on the type checker instead. */}
-      {lang !== "ts" && (
+          TypeScript and Python lessons rely on their own runtimes. */}
+      {lang === undefined && (
         <button
           type="button"
           onClick={() => setShowTrace((v) => !v)}
@@ -205,7 +255,7 @@ export default function Playground({ starter, check, onPass, onCodeChange, lang 
         </button>
       )}
 
-      {lang !== "ts" && showTrace && <TraceVisualizer code={code} />}
+      {lang === undefined && showTrace && <TraceVisualizer code={code} />}
 
       {check?.hints?.length ? (
         showHints ? (

@@ -1,4 +1,5 @@
 import type { Track } from "./types";
+import { debugChallenge } from "./debug-challenges";
 
 export const webTrack: Track = {
   id: "web",
@@ -526,6 +527,11 @@ console.log(c());`,
       id: "es6-syntax",
       title: "ES6+ Power Syntax: Arrows & Destructuring",
       minutes: 9,
+      // Tier 3 conversion (V2 §9): the recall starter ("write destructuring
+      // from memory") is gone. What the lesson now grades is the judgment
+      // version — an AI refactor that changes semantics — while the arrow and
+      // spread teaching stays in the reading above it.
+      debug: debugChallenge("off-by-one"),
       body: `Modern JavaScript reads differently than the old tutorials. Two upgrades you'll use every single day:
 
 **Arrow functions** — compact, and they *don't create their own \`this\`*:

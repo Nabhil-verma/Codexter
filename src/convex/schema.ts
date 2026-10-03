@@ -16,6 +16,15 @@ export default defineSchema({
      * score map — claims are dated attestations and merge by a different rule.
      */
     claims: v.optional(v.any()),
+    /**
+     * Attempt log: `{ [key]: { first, best, attempts, at } }` where `key` is
+     * `${track}/${lesson}` and `at` is the epoch ms of the last attempt.
+     * Optional, so rows written before the pilot's telemetry existed keep
+     * working without a migration. Aggregated client-side (first / best /
+     * count) rather than storing every attempt, because the gates need the
+     * summary and the row must stay bounded.
+     */
+    attempts: v.optional(v.any()),
     updatedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"]),

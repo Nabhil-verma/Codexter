@@ -6,6 +6,9 @@ export const tailwindTrack: Track = {
   blurb:
     "Utility-first styling, responsive systems, and shipping a real component kit.",
   numeral: "Ⅺ",
+  optional: true,
+  optionalWhy:
+    "Framework-specific styling. The mental model transfers to any utility-first system, but the utilities themselves are Tailwind's — worth the six lessons if your target stack uses it.",
   lessons: [
     {
       id: "utility-first",

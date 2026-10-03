@@ -8,11 +8,11 @@ const allLessons = tracks.flatMap((t) =>
 );
 
 describe("curriculum integrity", () => {
-  it("has sixteen tracks", () => {
-    expect(tracks).toHaveLength(16);
+  it("has seventeen tracks", () => {
+    expect(tracks).toHaveLength(17);
   });
 
-  it("covers all sixteen planned curriculum areas", () => {
+  it("covers all seventeen planned curriculum areas", () => {
     expect(tracks.map((t) => t.id)).toEqual([
       "web",
       "react",
@@ -30,6 +30,9 @@ describe("curriculum integrity", () => {
       "typescript",
       "performance",
       "agents",
+      // V2.1 Fix 2 propagation: the first content authored against the
+      // diff/click grader outside the pilot track.
+      "workflow",
     ]);
   });
 
@@ -155,8 +158,12 @@ describe("curriculum integrity", () => {
   it(
     "every interactive starter runs cleanly and every check expression compiles",
     async () => {
+      // Python lessons execute in the Pyodide worker, not the JS sandbox, and
+      // `tests/python-exercises.test.ts` runs them through their own runtime —
+      // feeding Python source to `new Function` would only produce a parse
+      // error about the first identifier.
       const runnable = allLessons.filter(
-        ({ lesson }) => lesson.starter && lesson.check
+        ({ lesson }) => lesson.starter && lesson.check && lesson.lang !== "python"
       );
       expect(runnable.length).toBeGreaterThan(8);
 
